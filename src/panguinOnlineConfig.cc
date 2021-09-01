@@ -574,10 +574,10 @@ void OnlineConfig::OverrideRootFile(UInt_t runnumber)
     cout << "Protorootfile set, use it: " << rootfilename.Data() << endl;
   } else {
     string fnmRoot="/adaq1/work1/apar/japanOutput";
-    if(getenv("QW_ROOTFILES"))
-      fnmRoot = getenv("QW_ROOTFILES");
+    if(getenv("ROOTFILES"))
+      fnmRoot = getenv("ROOTFILES");
     else
-      cout<<"QW_ROOTFILES env variable was not found going with default: "<< fnmRoot<<endl;
+      cout<<"ROOTFILES env variable was not found going with default: "<< fnmRoot<<endl;
 
     cout << " Looking for file with runnumber "<<runnumber<<" in "<<fnmRoot<<endl;
 

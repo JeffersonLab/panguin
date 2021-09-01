@@ -2,7 +2,7 @@
 
 Simple program that reads a configuration file and plots from a file. Searches for trees and branch names to find the correct tree. Plots the result of a macro (n.b. your macro should only make one plot). 
 
-If you have your QW_ROOTFILES env set it will search for a file with the correct run number in that folder assuming the format prexXXX_####.root, where XXX is the configuraiton (for now we have CH, INJ, ALL).
+If you have your ROOTFILES env set it will search for a file with the correct run number in that folder assuming the format prexXXX_####.root, where XXX is the configuraiton (for now we have CH, INJ, ALL).
 
 This has been tested to compile on adaq3 using cmake. 
 
@@ -43,7 +43,7 @@ a) Run the ET connected japan output:
 cd mainJapanDir
 build/qwparity --config prex.conf --add-config online_apar.conf
 ```
-This will connect to the ET system and analyze events as they come through the ET system. It will update the output file every ~30s. The output file will be placed in the QW_ROOTFILES directory and will have the following pattern: ''prexALL_999999.adaq*.root''. This file can be accessed from the prompt or through panguin. 
+This will connect to the ET system and analyze events as they come through the ET system. It will update the output file every ~30s. The output file will be placed in the ROOTFILES directory and will have the following pattern: ''prexALL_999999.adaq*.root''. This file can be accessed from the prompt or through panguin. 
 b) Run panguin:
 ```
 cd mainJapanDir/pangin
