@@ -879,6 +879,9 @@ void OnlineGUI::HistDraw(vector <TString> command) {
     }
   cout<<"showGolden= "<<showGolden<<endl;
 
+  TString drawopt = command[2];
+  
+  
   // Determine dimensionality of histogram
   for(UInt_t i=0; i<fileObjects.size(); i++) {
     if (fileObjects[i].first.Contains(command[0])) {
@@ -898,9 +901,9 @@ void OnlineGUI::HistDraw(vector <TString> command) {
 	    mytemp1d_golden->SetFillStyle(fillstyle);
 	    mytemp1d_golden->Draw();
 	    cout<<"one golden histo drawn"<<endl;
-	    mytemp1d->Draw("sames");
+	    mytemp1d->Draw("sames"+drawopt);
 	  } else {
-	    mytemp1d->Draw();
+	    mytemp1d->Draw(drawopt);
 	  }
 	}
 	break;
@@ -918,8 +921,8 @@ void OnlineGUI::HistDraw(vector <TString> command) {
 	  // 	    mytemp2d_golden->SetMarkerColor(2);
 	  // 	    mytemp2d_golden->Draw();
 	  //mytemp2d->Draw("sames");
-	  // 	  } else {
-	  mytemp2d->Draw();
+	  // 	  } else { because it usually doesn't make sense to superimpose two 2d histos together:
+	  mytemp2d->Draw(drawopt);
 	  // 	  }
 	}
 	break;
@@ -936,9 +939,9 @@ void OnlineGUI::HistDraw(vector <TString> command) {
 	    mytemp3d_golden = (TH3D*)gDirectory->Get(command[0]);
 	    mytemp3d_golden->SetMarkerColor(2);
 	    mytemp3d_golden->Draw();
-	    mytemp3d->Draw("sames");
+	    mytemp3d->Draw("sames"+drawopt);
 	  } else {
-	    mytemp3d->Draw();
+	    mytemp3d->Draw(drawopt);
 	  }
 	}
 	break;
