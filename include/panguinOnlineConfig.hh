@@ -4,6 +4,8 @@
 #include <utility>
 #include <fstream>
 #include <vector>
+#include <set>
+#include <map>
 #include <TString.h>
 #include "TCut.h"
 
@@ -54,7 +56,7 @@ public:
   Bool_t IsLogy(UInt_t page);
   TString GetPageTitle(UInt_t);
   UInt_t GetDrawCount(UInt_t);           // Number of histograms in a page
-  std::vector <TString> GetDrawCommand(UInt_t,UInt_t);
+  void GetDrawCommand(UInt_t,UInt_t, std::map<TString,TString> &);
   std::vector <TString> SplitString(TString,TString);
   void OverrideRootFile(UInt_t);
   Bool_t IsMonitor() { return fMonitor; };

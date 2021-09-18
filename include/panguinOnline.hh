@@ -14,6 +14,8 @@
 #include <RQ_OBJECT.h>
 #include <TQObject.h>
 #include <vector>
+#include <map>
+#include <set>
 #include <TString.h>
 #include <TCut.h>
 #include <TTimer.h>
@@ -85,11 +87,11 @@ public:
   void GetRootTree();
   UInt_t GetTreeIndex(TString);
   UInt_t GetTreeIndexFromName(TString);
-  void TreeDraw(std::vector <TString>); 
-  void HistDraw(std::vector <TString>);
-  void MacroDraw(std::vector <TString>);
-  void LoadDraw(std::vector <TString>);
-  void LoadLib(std::vector <TString>);
+  void TreeDraw(std::map<TString,TString> &command); 
+  void HistDraw(std::map<TString,TString> &command);
+  void MacroDraw(std::map<TString,TString> &command);
+  void LoadDraw(std::map<TString,TString> &command);
+  void LoadLib(std::map<TString,TString> &command);
   void DoDrawClear();
   void TimerUpdate();
   void UpdateCurrentTime();  // update current time

@@ -2,6 +2,7 @@
 #include <TApplication.h>
 #include <TString.h>
 #include <TROOT.h>
+#include <TSystem.h>
 #include <iostream>
 #include <ctime>
 
@@ -59,6 +60,14 @@ int main(int argc, char **argv){
   cout<<"Finished processing arg. Time passed: "
       <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
 
+  if( !gSystem->AccessPathName("./rootlogon.C") ){
+    gROOT->ProcessLine(".x rootlogon.C");
+  }
+
+  if( !gSystem->AccessPathName("~/rootlogon.C") ){
+    gROOT->ProcessLine(".x ~/rootlogon.C");
+  }
+  
   online(type,run,printonly,verbosity);
   theApp.Run();
 
