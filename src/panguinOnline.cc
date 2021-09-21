@@ -301,7 +301,7 @@ void OnlineGUI::DoDraw()
   // The main Drawing Routine.
 
   gStyle->SetOptStat(1110);
-  gStyle->SetStatFontSize(0.1);
+  //gStyle->SetStatFontSize(0.1);
   if (fConfig->IsLogy(current_page)) {
     gStyle->SetOptLogy(1);
   } else {
@@ -309,24 +309,24 @@ void OnlineGUI::DoDraw()
   }
   //   gStyle->SetTitleH(0.10);
   //   gStyle->SetTitleW(0.40);
-  gStyle->SetTitleH(0.10);
-  gStyle->SetTitleW(0.60);
-  gStyle->SetStatH(0.70);
-  gStyle->SetStatW(0.35);
+  //gStyle->SetTitleH(0.10);
+  //gStyle->SetTitleW(0.60);
+  //gStyle->SetStatH(0.1);
+  //gStyle->SetStatW(0.2);
   //   gStyle->SetLabelSize(0.10,"X");
   //   gStyle->SetLabelSize(0.10,"Y");
-  gStyle->SetLabelSize(0.05,"X");
-  gStyle->SetLabelSize(0.05,"Y");
-  gStyle->SetPadLeftMargin(0.14);
-  gStyle->SetNdivisions(505,"X");
-  gStyle->SetNdivisions(404,"Y");
-  gROOT->ForceStyle();
+  //gStyle->SetLabelSize(0.05,"X");
+  //gStyle->SetLabelSize(0.05,"Y");
+  // gStyle->SetPadLeftMargin(0.14);
+  // gStyle->SetNdivisions(505,"X");
+  // gStyle->SetNdivisions(404,"Y");
+  // gROOT->ForceStyle();
 
   // Determine the dimensions of the canvas..
   UInt_t draw_count = fConfig->GetDrawCount(current_page);
   if(draw_count>=8) {
-    gStyle->SetLabelSize(0.08,"X");
-    gStyle->SetLabelSize(0.08,"Y");
+    //gStyle->SetLabelSize(0.08,"X");
+    //gStyle->SetLabelSize(0.08,"Y");
   }
   //   Int_t dim = Int_t(round(sqrt(double(draw_count))));
   pair <UInt_t,UInt_t> dim = fConfig->GetPageDim(current_page);
