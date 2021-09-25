@@ -613,8 +613,11 @@ void OnlineConfig::OverrideRootFile(UInt_t runnumber)
   // uses a helper macro "GetRootFileName.C(UInt_t runnumber)
   cout<< "Root file defined before was: "<<rootfilename<<endl;
   if(!protorootfile.IsNull()) {
-    char runnostr[10];
-    sprintf(runnostr,"%04i",runnumber);
+    //char runnostr[10];
+    //sprintf(runnostr,"%04i",runnumber);
+
+    TString runnostr;
+    runnostr.Form("%d", runnumber);
     protorootfile.ReplaceAll("XXXXX",runnostr);
     rootfilename = protorootfile;
     TString temp = rootfilename(rootfilename.Last('_')+1,rootfilename.Length());
