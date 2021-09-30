@@ -28,6 +28,7 @@
 #include "TEnv.h"
 #include "TRegexp.h"
 #include "TGraph.h"
+#include "TGaxis.h"
 #include <map>
 
 #define OLDTIMERUPDATE
@@ -309,24 +310,36 @@ void OnlineGUI::DoDraw()
   }
   //   gStyle->SetTitleH(0.10);
   //   gStyle->SetTitleW(0.40);
-  //gStyle->SetTitleH(0.10);
+  gStyle->SetTitleH(0.1);
+  //  gStyle->SetTitleX(0.55);
+  //gStyle->SetTitleW(0.6);
   //gStyle->SetTitleW(0.60);
-  //gStyle->SetStatH(0.1);
-  //gStyle->SetStatW(0.2);
+  //gStyle->SetStatH(0.2);
+  gStyle->SetStatW(0.25);
+  gStyle->SetStatX(0.9);
+  gStyle->SetStatY(0.88);
   //   gStyle->SetLabelSize(0.10,"X");
   //   gStyle->SetLabelSize(0.10,"Y");
-  //gStyle->SetLabelSize(0.05,"X");
-  //gStyle->SetLabelSize(0.05,"Y");
-  // gStyle->SetPadLeftMargin(0.14);
+  gStyle->SetLabelSize(0.05,"X");
+  gStyle->SetLabelSize(0.05,"Y");
+  gStyle->SetPadLeftMargin(0.15);
+  gStyle->SetPadBottomMargin(0.08);
+  gStyle->SetPadRightMargin(0.1);
+  gStyle->SetPadTopMargin(0.12);
   // gStyle->SetNdivisions(505,"X");
   // gStyle->SetNdivisions(404,"Y");
   // gROOT->ForceStyle();
 
+  TGaxis::SetMaxDigits(3);
+  
+  gStyle->SetNdivisions(505,"XYZ");
+  gROOT->ForceStyle();
+  
   // Determine the dimensions of the canvas..
   UInt_t draw_count = fConfig->GetDrawCount(current_page);
   if(draw_count>=8) {
-    //gStyle->SetLabelSize(0.08,"X");
-    //gStyle->SetLabelSize(0.08,"Y");
+    gStyle->SetLabelSize(0.08,"X");
+    gStyle->SetLabelSize(0.08,"Y");
   }
   //   Int_t dim = Int_t(round(sqrt(double(draw_count))));
   pair <UInt_t,UInt_t> dim = fConfig->GetPageDim(current_page);
@@ -963,6 +976,11 @@ void OnlineGUI::HistDraw(std::map<TString,TString> &command) {
 	  // 	    mytemp2d_golden->Draw();
 	  //mytemp2d->Draw("sames");
 	  // 	  } else { because it usually doesn't make sense to superimpose two 2d histos together:
+
+	  if( drawopt.Contains("colz") ){
+	    gPad->SetRightMargin(0.15);
+	  }
+	  
 	  if( newtitle != "" ) mytemp2d->SetTitle(newtitle);
 	  mytemp2d->SetStats(showstat);
 	  mytemp2d->Draw(drawopt);
@@ -1040,6 +1058,8 @@ void OnlineGUI::TreeDraw(map<TString,TString> &command) {
   TString drawopt = command["drawopt"];
 
   std::cout << "drawopt = " << drawopt << std::endl;
+
+  if( drawopt.Contains("colz") ) gPad->SetRightMargin(0.15);
   
   if(fVerbosity>=3)
     cout<<"\tDraw option:"<<drawopt<<" and histo name "<<histoname<<endl;
