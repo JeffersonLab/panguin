@@ -189,11 +189,11 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
 
   if(!fConfig->IsMonitor()) {
     wile = 
-      new TGPictureButton(vframe,gClient->GetPicture(guiDirectory+"/genius.xpm"));
+      new TGPictureButton(vframe,gClient->GetPicture(fConfig->GetGuiDirectory()+"/genius.xpm"));
     wile->Connect("Pressed()","OnlineGUI", this,"DoDraw()");
   } else {
     wile = 
-      new TGPictureButton(vframe,gClient->GetPicture(guiDirectory+"/panguin.xpm"));
+      new TGPictureButton(vframe,gClient->GetPicture(fConfig->GetGuiDirectory()+"/panguin.xpm"));
     wile->Connect("Pressed()","OnlineGUI", this,"DoDrawClear()");
   }
   wile->SetBackgroundColor(mainguicolor);

@@ -26,6 +26,26 @@ OnlineConfig::OnlineConfig(TString anatype):
 {
   // Constructor.  Takes the config anatype as the only argument.
   //  Loads up the configuration file, and stores it's contents for access.
+
+  TString default_gui_directory = ".";
+  if( getenv("SBS_REPLAY") != nullptr ){
+    default_gui_directory = getenv("SBS_REPLAY");
+
+    default_gui_directory += "/onlineGUIconfig";
+  }
+
+  guiDirectory = default_gui_directory;
+
+  cout << "guiDirectory = " << guiDirectory << endl;
+  
+  
+
+  //If the user environment points to something else, use that:
+  if( getenv("PANGUIN_CONFIG_DIR") ){
+    guiDirectory = getenv("PANGUIN_CONFIG_DIR"); 
+  }
+
+  std::cout << "guiDirectory = " << guiDirectory << endl;
   
   //confFileName += ".cfg";//Not sure what this would be needed DELETEME cg
   fMonitor = kFALSE;
@@ -620,11 +640,13 @@ void OnlineConfig::OverrideRootFile(UInt_t runnumber)
     runnostr.Form("%d", runnumber);
     protorootfile.ReplaceAll("XXXXX",runnostr);
     rootfilename = protorootfile;
-    TString temp = rootfilename(rootfilename.Last('_')+1,rootfilename.Length());
-    fRunNumber = atoi(temp(0,temp.Last('.')).Data());
+    // TString temp = rootfilename(rootfilename.Last('_')+1,rootfilename.Length());
+    // fRunNumber = atoi(temp(0,temp.Last('.')).Data());
+
+    fRunNumber = runnumber;
     cout << "Protorootfile set, use it: " << rootfilename.Data() << endl;
   } else {
-    string fnmRoot="/adaq1/work1/apar/japanOutput";
+    string fnmRoot="/adaq1/data1/sbs";
     if(getenv("ROOTFILES"))
       fnmRoot = getenv("ROOTFILES");
     else
@@ -634,27 +656,27 @@ void OnlineConfig::OverrideRootFile(UInt_t runnumber)
 
     DIR *dirSearch;
     struct dirent *entSearch;
-    const string daqConfigs[3] = {"CH","inj","ALL"};
+    const string daqConfigs[3] = {"e1209019_trigtest","gmn","bbgem_replayed"};
     int found=0;
     string partialname = "";
     if ((dirSearch = opendir (fnmRoot.c_str())) != NULL) {
       while ((entSearch = readdir (dirSearch)) != NULL) {
 	for(int i=0;i<3;i++){
-	  partialname = Form("prex%s_%d.root",daqConfigs[i].c_str(),runnumber);
+	  partialname = Form("%s_%d.root",daqConfigs[i].c_str(),runnumber);
 	  std::string fullname = entSearch->d_name;
 	  if(fullname.find(partialname) != std::string::npos){
 	    rootfilename = fnmRoot + "/" + fullname;
 	    found++;
 	  }
 	  if(found==0 && fMonitor){
-	    partialname = Form("prex%s_%d.adaq1",daqConfigs[i].c_str(),runnumber);
+	    partialname = Form("%s_%d.adaq1",daqConfigs[i].c_str(),runnumber);
 	    std::string fullname = entSearch->d_name;
 	    if(fullname.find(partialname) != std::string::npos){
 	      rootfilename = fnmRoot + "/" + fullname;
 	      found++;
 	    }
 	  }else if(!fMonitor && found==0){
-	    partialname = Form("prex%s_%d.000.root",daqConfigs[i].c_str(),runnumber);
+	    partialname = Form("%s_%d.0.root",daqConfigs[i].c_str(),runnumber);
 	    if(fVerbosity>=1)
 	      cout<<__PRETTY_FUNCTION__<<"\t"<<__LINE__<<endl
 		  <<"Looking for a segmented output. Looking at segment 000 only"<<endl;
