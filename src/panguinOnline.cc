@@ -1218,8 +1218,8 @@ void OnlineGUI::PrintPages() {
   gStyle->SetTitleX(0.15);
   gStyle->SetTitleY(0.9);
   gStyle->SetPadBorderMode(0);
-  gStyle->SetHistLineColor(1);
-  gStyle->SetHistFillColor(1);
+  //gStyle->SetHistLineColor(1);
+  gStyle->SetHistFillStyle(0);
   if(!pagePrint) fCanvas->Print(filename+"[");
   TString origFilename = filename;
   for(UInt_t i=0; i<fConfig->GetPageCount(); i++) {
