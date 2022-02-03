@@ -158,19 +158,22 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
   current_page = 0;
 
   // Create the listbox that'll hold the list of pages
-  fPageListBox = new TGListBox(vframe); // FIXME: Not sure if I need an ID here
+  fPageListBox = new TGListBox(vframe);
+  fPageListBox->IntegralHeight(kTRUE);
 
   TString buff;
   for(UInt_t i=0; i<fConfig->GetPageCount(); i++) {
     buff = fConfig->GetPageTitle(i);
     fPageListBox->AddEntry(buff, i);
   }
-  fPageListBox->SetBackgroundColor(mainguicolor);
-
 
   vframe->AddFrame(fPageListBox, new TGLayoutHints(kLHintsExpandX |
-						   kLHintsExpandY,5,5,3,4));
-  fPageListBox->Resize(w*0.20, h*0.85);
+						   kLHintsCenterY,5,5,3,4));
+
+  UInt_t maxsize = (fConfig->GetPageCount()+1 > 30) ? 30 : fConfig->GetPageCount()+1;
+  fPageListBox->Resize(UInt_t(w*0.15),
+		       fPageListBox->GetItemVsize()*(maxsize));
+
   fPageListBox->Select(0);
   fPageListBox->Connect("Selected(Int_t)", "OnlineGUI", this,
 			"DoListBox(Int_t)");
