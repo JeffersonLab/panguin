@@ -8,6 +8,7 @@
 #include <TFile.h>
 #include <TGButton.h>
 #include <TGFrame.h>
+#include <TGListBox.h>
 #include <TRootEmbeddedCanvas.h>
 #include "TGLabel.h"
 #include "TGString.h"
@@ -31,7 +32,7 @@ private:
   TGMainFrame                      *fMain;
   TGHorizontalFrame                *fTopframe;
   TGVerticalFrame                  *vframe;
-  TGRadioButton                    *fRadioPage[50];
+  TGListBox                        *fPageListBox;
   TGPictureButton                  *wile;
   TGTextButton                     *fNow; // current time
   TGTextButton                     *fLastUpdated; // plots last updated
@@ -76,7 +77,7 @@ public:
   void DoDraw();
   void DrawPrev();
   void DrawNext();
-  void DoRadio();
+  void DoListBox(Int_t id);
   void CheckPageButtons();
   // Specific Draw Methods
   Bool_t IsHistogram(TString);

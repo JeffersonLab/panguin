@@ -151,25 +151,32 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
   fMain->AddFrame(fTopframe, new TGLayoutHints(kLHintsExpandX 
 					       | kLHintsExpandY,10,10,10,1));
 
-  // Create a verticle frame widget with radio buttons
-  //  This will hold the page buttons
+  // Create a verticle frame widget
+  //  This will hold the listbox
   vframe = new TGVerticalFrame(fTopframe,UInt_t(w*0.3),UInt_t(h*0.9));
   vframe->SetBackgroundColor(mainguicolor);
+  current_page = 0;
+
+  // Create the listbox that'll hold the list of pages
+  fPageListBox = new TGListBox(vframe);
+  fPageListBox->IntegralHeight(kTRUE);
+
   TString buff;
   for(UInt_t i=0; i<fConfig->GetPageCount(); i++) {
     buff = fConfig->GetPageTitle(i);
-    fRadioPage[i] = new TGRadioButton(vframe,buff,i);
-    fRadioPage[i]->SetBackgroundColor(mainguicolor);
+    fPageListBox->AddEntry(buff, i);
   }
 
-  fRadioPage[0]->SetState(kButtonDown);
-  current_page = 0;
+  vframe->AddFrame(fPageListBox, new TGLayoutHints(kLHintsExpandX |
+						   kLHintsCenterY,5,5,3,4));
 
-  for (UInt_t i=0; i<fConfig->GetPageCount(); i++) {
-    vframe->AddFrame(fRadioPage[i], new TGLayoutHints(kLHintsLeft |
-						      kLHintsCenterY,5,5,3,4));
-    fRadioPage[i]->Connect("Pressed()", "OnlineGUI", this, "DoRadio()");
-  }
+  UInt_t maxsize = (fConfig->GetPageCount()+1 > 30) ? 30 : fConfig->GetPageCount()+1;
+  fPageListBox->Resize(UInt_t(w*0.15),
+		       fPageListBox->GetItemVsize()*(maxsize));
+
+  fPageListBox->Select(0);
+  fPageListBox->Connect("Selected(Int_t)", "OnlineGUI", this,
+			"DoListBox(Int_t)");
 
   // heartbeat below the picture, watchfile only
   if(fConfig->IsMonitor()){
@@ -397,42 +404,30 @@ void OnlineGUI::DoDraw()
 void OnlineGUI::DrawNext()
 {
   // Handler for the "Next" button.
-  fRadioPage[current_page]->SetState(kButtonUp);
-  // The following line triggers DoRadio(), or at least.. used to
-  fRadioPage[current_page+1]->SetState(kButtonDown);
-  current_page++;
+
+  Int_t current_selection = fPageListBox->GetSelected();
+  fPageListBox->Select(current_selection+1);
+  current_page = current_selection + 1;
+
   DoDraw();
 }
 
 void OnlineGUI::DrawPrev()
 {
   // Handler for the "Prev" button.
-  fRadioPage[current_page]->SetState(kButtonUp);
-  // The following line triggers DoRadio(), or at least.. used to
-  fRadioPage[current_page-1]->SetState(kButtonDown);
-  current_page--;
+  Int_t current_selection = fPageListBox->GetSelected();
+  fPageListBox->Select(current_selection-1);
+  current_page = current_selection - 1;
+
   DoDraw();  
 }
 
-void OnlineGUI::DoRadio()
+void OnlineGUI::DoListBox(Int_t id)
 {
-  // Handle the radio buttons
-  //  Find out which button has been pressed..
-  //   turn off the previous button...
-  //   then draw the appropriate page.
-  // This routine also handles the Draw from the Prev/Next buttons
-  //   - makes a call to DoDraw()
-
-  UInt_t pagecount = fConfig->GetPageCount();
-  TGButton *btn = (TGButton *) gTQSender;
-  UInt_t id = btn->WidgetId();
-  
-  if (id <= pagecount) {  
-    fRadioPage[current_page]->SetState(kButtonUp);
-  }
-
+  // Handle selection in the list box
   current_page = id;
   DoDraw();
+
 }
 
 void OnlineGUI::CheckPageButtons() 
@@ -1191,8 +1186,7 @@ void OnlineGUI::MyCloseWindow()
   delete fPrev;
   delete fNext;
   delete wile;
-  for(UInt_t i=0; i<fConfig->GetPageCount(); i++) 
-    delete fRadioPage[i];
+  delete fPageListBox;
   delete hframe;
   delete fEcanvas;
   delete fBottomFrame;
@@ -1225,8 +1219,7 @@ OnlineGUI::~OnlineGUI()
   delete fPrev;
   delete fNext;
   delete wile;
-  for(UInt_t i=0; i<fConfig->GetPageCount(); i++) 
-    delete fRadioPage[i];
+  delete fPageListBox;
   delete hframe;
   delete fEcanvas;
   delete vframe;
