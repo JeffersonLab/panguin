@@ -1215,8 +1215,8 @@ void OnlineGUI::PrintPages() {
   //  pagehead += ": ";
 
   gStyle->SetPalette(1);
-  gStyle->SetTitleX(0.15);
-  gStyle->SetTitleY(0.9);
+  //gStyle->SetTitleX(0.15);
+  //gStyle->SetTitleY(0.9);
   gStyle->SetPadBorderMode(0);
   //gStyle->SetHistLineColor(1);
   gStyle->SetHistFillStyle(0);
