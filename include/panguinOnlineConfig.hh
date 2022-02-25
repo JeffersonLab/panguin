@@ -4,10 +4,12 @@
 #include <utility>
 #include <fstream>
 #include <vector>
+#include <set>
+#include <map>
 #include <TString.h>
 #include "TCut.h"
 
-static TString guiDirectory = "macros";
+//static TString guiDirectory = "macros";
 
 class OnlineConfig {
   // Class that takes care of the config file
@@ -33,10 +35,14 @@ private:
   TString fPlotFormat;
   int fRunNumber;
 
+  TString guiDirectory; //Initialize this from environment variables
+
 public:
   OnlineConfig();
   OnlineConfig(TString);
   int GetRunNumber(){return fRunNumber;}
+
+  TString GetGuiDirectory(){ return guiDirectory; }
   TString GetConfFileName(){return confFileName;}
   void Get2DnumberBins(int &nX, int &nY){nX = hist2D_nBinsX; nY = hist2D_nBinsY;}
   void SetVerbosity(int ver){fVerbosity=ver;}
@@ -54,7 +60,7 @@ public:
   Bool_t IsLogy(UInt_t page);
   TString GetPageTitle(UInt_t);
   UInt_t GetDrawCount(UInt_t);           // Number of histograms in a page
-  std::vector <TString> GetDrawCommand(UInt_t,UInt_t);
+  void GetDrawCommand(UInt_t,UInt_t, std::map<TString,TString> &);
   std::vector <TString> SplitString(TString,TString);
   void OverrideRootFile(UInt_t);
   Bool_t IsMonitor() { return fMonitor; };

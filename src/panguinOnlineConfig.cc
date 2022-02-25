@@ -26,6 +26,26 @@ OnlineConfig::OnlineConfig(TString anatype):
 {
   // Constructor.  Takes the config anatype as the only argument.
   //  Loads up the configuration file, and stores it's contents for access.
+
+  TString default_gui_directory = ".";
+  if( getenv("SBS_REPLAY") != nullptr ){
+    default_gui_directory = getenv("SBS_REPLAY");
+
+    default_gui_directory += "/onlineGUIconfig";
+  }
+
+  guiDirectory = default_gui_directory;
+
+  cout << "guiDirectory = " << guiDirectory << endl;
+  
+  
+
+  //If the user environment points to something else, use that:
+  if( getenv("PANGUIN_CONFIG_DIR") ){
+    guiDirectory = getenv("PANGUIN_CONFIG_DIR"); 
+  }
+
+  std::cout << "guiDirectory = " << guiDirectory << endl;
   
   //confFileName += ".cfg";//Not sure what this would be needed DELETEME cg
   fMonitor = kFALSE;
@@ -400,19 +420,26 @@ UInt_t OnlineConfig::GetDrawCount(UInt_t page)
 
 }
 
-vector <TString> OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand)
+void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString,TString> &out_command)
 {
   // Returns the vector of strings pertaining to a specific page, and 
   //   draw command from the config.
-  // Return vector of TStrings:
-  //  0: variable
-  //  1: cut
-  //  2: type
-  //  3: title
-  //  4: treename
-  //  5: grid
+  // Return map<TString,TString> in out_command:
+  //Following options are implemented:
+  // 1. "-drawopt" --> set draw options for histograms and tree variables
+  // 2. "-title" --> set title, enclose in double quotes
+  // 3. "-tree" --> set tree name
+  // 4. "-grid" --> set "grid" option
+  // 5. "-logx, -logy, -logz" --> draw with log x,y,z axis
+  // 6. "-nostat" --> don't show stats box
+  // 7. "-noshowgolden" --> don't show "golden" histogram even if goldenrootfile is defined
+  // 8. any option not preceded by these indicators is assumed to be a cut or macro expression:
+  //what options do we want?
+  // all options on one line. First argument assumed to be histogram or tree name (or "macro") 
 
-  vector <TString> out_command(6);
+  out_command.clear();
+  
+  //vector <TString> out_command(6);
   vector <UInt_t> command_vector = GetDrawIndex(page);
   UInt_t index = command_vector[nCommand];
 
@@ -422,26 +449,49 @@ vector <TString> OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand)
 	 << nCommand << ")" << endl;
   }
 
-  for(UInt_t i=0; i<out_command.size(); i++) {
-    out_command[i] = "";
-  }
+  // for(UInt_t i=0; i<out_command.size(); i++) {
+  //   out_command[i] = "";
+  // }
 
   // First line is the variable
   if(sConfFile[index].size()>=1) {
-    out_command[0] = sConfFile[index][0];
+    out_command["variable"] = sConfFile[index][0];
   }
 
+  if( out_command["variable"] == "macro" && sConfFile[index].size() > 1 ){
+
+    TString macrocmd=""; //interpret the rest of the line as the macro to execute:
+    for( int i=1; i<sConfFile[index].size(); i++){
+      macrocmd += sConfFile[index][i];
+    }
+    
+    out_command["macro"] = macrocmd;
+    return;
+  }
+
+  if( out_command["variable"] == "loadmacro" && sConfFile[index].size() > 2 ){
+    out_command["library"] = sConfFile[index][1]; //shared library to load
+    out_command["macro"] = sConfFile[index][2]; //macro command to execute
+    return;
+  }
+
+  if( out_command["variable"] == "loadlib" && sConfFile[index].size() > 1 ){
+    out_command["library"] = sConfFile[index][1]; //shared library to load
+  }
+  
   // Now go through the rest of that line..
   for (UInt_t i=1; i<sConfFile[index].size(); i++) {
-    if(sConfFile[index][i]=="-type") {
-      if(out_command[2].IsNull()){
-        out_command[2] = sConfFile[index][i+1];
-        i = i+1;
-      } else {
-        cout << "Error: Multiple types in line: " << index << endl;
-        exit(1);
-      }
-    } else if(sConfFile[index][i]=="-title") {
+    if(sConfFile[index][i]=="-drawopt" && i+1 < sConfFile[index].size() ) {
+      // if(out_command[2].IsNull()){
+      //   out_command[2] = sConfFile[index][i+1];
+      //   i = i+1;
+      // } else {
+      //   cout << "Error: Multiple types in line: " << index << endl;
+      //   exit(1);
+      // }
+      out_command["drawopt"] = sConfFile[index][i+1];
+      i++;
+    } else if(sConfFile[index][i]=="-title" && i+1 < sConfFile[index].size() ) {
       // Put the entire title, (must be) surrounded by quotes, as one TString
       TString title;
       UInt_t j=0;
@@ -482,34 +532,51 @@ vector <TString> OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand)
         cout << "Error, unmatched double quote, please check you config file. Quitting" << endl;  
         exit(1);
       }
-      if (out_command[3].IsNull()){
-        out_command[3] = title;
-      } else {
-        cout << "Error: Multiple titles in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
-        exit(1);
-      }
-    } else if(sConfFile[index][i]=="-tree") {
-      if (out_command[4].IsNull()){
-        out_command[4] = sConfFile[index][i+1];
-        i = i+1;
-      } else {
-        cout << "Error: Multiple trees in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
-        exit(1);
-      }
+
+      out_command["title"] = title;
+      
+      // if (out_command[3].IsNull()){
+      //   out_command[3] = title;
+      // } else {
+      //   cout << "Error: Multiple titles in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
+      //   exit(1);
+      // }
+    } else if(sConfFile[index][i]=="-tree" && i+1 < sConfFile[index].size() ) {
+      out_command["tree"] = sConfFile[index][i+1];
+      i++;
+      // if (out_command[4].IsNull()){
+      //   out_command[4] = sConfFile[index][i+1];
+      //   i = i+1;
+      // } else {
+      //   cout << "Error: Multiple trees in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
+      //   exit(1);
+      // }
     } else if(sConfFile[index][i]=="-grid") {
-      if (out_command[5].IsNull()){ // grid option only works with TreeDraw
-        out_command[5] = "grid";
-      } else {
-        cout << "Error: Multiple setup of grid in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
-        exit(1);
-      }
+      out_command["grid"] = "grid";
+      // if (out_command[5].IsNull()){ // grid option only works with TreeDraw
+      //   out_command[5] = "grid";
+      // } else {
+      //   cout << "Error: Multiple setup of grid in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
+      //   exit(1);
+      // }
+    } else if(sConfFile[index][i]=="-logx" ) {
+      out_command["logx"] = "logx";
+    } else if(sConfFile[index][i]=="-logy" ) {
+      out_command["logy"] = "logy";	
+    } else if( sConfFile[index][i]=="-logz" ) {
+      out_command["logz"] = "logz";
+    } else if( sConfFile[index][i]=="-nostat" ) {
+      out_command["nostat"] = "nostat";
+    } else if( sConfFile[index][i]=="-noshowgolden" ){
+      out_command["noshowgolden"] = "noshowgolden";
     } else {  // every thing else is regarded as cut
-      if (out_command[1].IsNull()) {
-        out_command[1] = sConfFile[index][i];
-      } else {
-        cout << "Error: Multiple cut conditions in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
-        exit(1);
-      }
+      out_command["cut"] = sConfFile[index][i];
+      // if (out_command[1].IsNull()) {
+      //   out_command[1] = sConfFile[index][i];
+      // } else {
+      //   cout << "Error: Multiple cut conditions in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
+      //   exit(1);
+      // }
     }
   }
 
@@ -524,7 +591,8 @@ vector <TString> OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand)
     }
   }
 
-  return out_command;
+  //return out_command;
+  return;
 }
 
 vector <TString> OnlineConfig::SplitString(TString instring,TString delim) 
@@ -565,15 +633,20 @@ void OnlineConfig::OverrideRootFile(UInt_t runnumber)
   // uses a helper macro "GetRootFileName.C(UInt_t runnumber)
   cout<< "Root file defined before was: "<<rootfilename<<endl;
   if(!protorootfile.IsNull()) {
-    char runnostr[10];
-    sprintf(runnostr,"%04i",runnumber);
+    //char runnostr[10];
+    //sprintf(runnostr,"%04i",runnumber);
+
+    TString runnostr;
+    runnostr.Form("%d", runnumber);
     protorootfile.ReplaceAll("XXXXX",runnostr);
     rootfilename = protorootfile;
-    TString temp = rootfilename(rootfilename.Last('_')+1,rootfilename.Length());
-    fRunNumber = atoi(temp(0,temp.Last('.')).Data());
+    // TString temp = rootfilename(rootfilename.Last('_')+1,rootfilename.Length());
+    // fRunNumber = atoi(temp(0,temp.Last('.')).Data());
+
+    fRunNumber = runnumber;
     cout << "Protorootfile set, use it: " << rootfilename.Data() << endl;
   } else {
-    string fnmRoot="/adaq1/work1/apar/japanOutput";
+    string fnmRoot="/adaq1/data1/sbs";
     if(getenv("ROOTFILES"))
       fnmRoot = getenv("ROOTFILES");
     else
@@ -583,27 +656,27 @@ void OnlineConfig::OverrideRootFile(UInt_t runnumber)
 
     DIR *dirSearch;
     struct dirent *entSearch;
-    const string daqConfigs[3] = {"CH","inj","ALL"};
+    const string daqConfigs[3] = {"e1209019_trigtest","gmn","bbgem_replayed"};
     int found=0;
     string partialname = "";
     if ((dirSearch = opendir (fnmRoot.c_str())) != NULL) {
       while ((entSearch = readdir (dirSearch)) != NULL) {
 	for(int i=0;i<3;i++){
-	  partialname = Form("prex%s_%d.root",daqConfigs[i].c_str(),runnumber);
+	  partialname = Form("%s_%d.root",daqConfigs[i].c_str(),runnumber);
 	  std::string fullname = entSearch->d_name;
 	  if(fullname.find(partialname) != std::string::npos){
 	    rootfilename = fnmRoot + "/" + fullname;
 	    found++;
 	  }
 	  if(found==0 && fMonitor){
-	    partialname = Form("prex%s_%d.adaq1",daqConfigs[i].c_str(),runnumber);
+	    partialname = Form("%s_%d.adaq1",daqConfigs[i].c_str(),runnumber);
 	    std::string fullname = entSearch->d_name;
 	    if(fullname.find(partialname) != std::string::npos){
 	      rootfilename = fnmRoot + "/" + fullname;
 	      found++;
 	    }
 	  }else if(!fMonitor && found==0){
-	    partialname = Form("prex%s_%d.000.root",daqConfigs[i].c_str(),runnumber);
+	    partialname = Form("%s_%d.0.root",daqConfigs[i].c_str(),runnumber);
 	    if(fVerbosity>=1)
 	      cout<<__PRETTY_FUNCTION__<<"\t"<<__LINE__<<endl
 		  <<"Looking for a segmented output. Looking at segment 000 only"<<endl;
