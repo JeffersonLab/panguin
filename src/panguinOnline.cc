@@ -42,7 +42,7 @@ using namespace std;
 //
 //
 
-OnlineGUI::OnlineGUI(OnlineConfig& config, Bool_t printonly=0, int ver=0):
+OnlineGUI::OnlineGUI(OnlineConfig& config, Bool_t printonly=0, int ver=0, Bool_t saveImages=0):
   runNumber(0),
   timer(0), 
   timerNow(0),
@@ -60,6 +60,10 @@ OnlineGUI::OnlineGUI(OnlineConfig& config, Bool_t printonly=0, int ver=0):
     if(fVerbosity>1){
       cout<<"Set 2D default bins to x, y: "<<bin2Dx<<", "<<bin2Dy<<endl;
     }
+  }
+
+  if(saveImages) {
+      fSaveImages=kTRUE;
   }
 
   if(printonly) {
@@ -885,7 +889,17 @@ Int_t OnlineGUI::OpenRootFile() {
   return 0;
 
 }
-
+void OnlineGUI::SaveImage(TObject* o,std::map<TString,TString> &command)
+{
+  if(this->fSaveImages)
+      {
+        cout<<"saving image "<< command["variable"] <<endl;
+        TCanvas *c = new TCanvas("c","c",gPad->GetWw(),gPad->GetWh());
+        o->Draw(command["drawopt"]);
+        c->Print("hydra_"+command["variable"]+".png");
+        delete c;
+      }
+}
 void OnlineGUI::HistDraw(std::map<TString,TString> &command) {
   // Called by DoDraw(), this will plot a histogram.
 
@@ -953,6 +967,8 @@ void OnlineGUI::HistDraw(std::map<TString,TString> &command) {
 	    mytemp1d->SetStats(showstat);
 	    if( newtitle != "" ) mytemp1d->SetTitle(newtitle);
 	    mytemp1d->Draw(drawopt);
+
+      SaveImage(mytemp1d, command);
 	  }
 	}
 	break;
@@ -979,6 +995,7 @@ void OnlineGUI::HistDraw(std::map<TString,TString> &command) {
 	  if( newtitle != "" ) mytemp2d->SetTitle(newtitle);
 	  mytemp2d->SetStats(showstat);
 	  mytemp2d->Draw(drawopt);
+    SaveImage(mytemp2d, command);
 	  // 	  }
 	}
 	break;
@@ -999,6 +1016,8 @@ void OnlineGUI::HistDraw(std::map<TString,TString> &command) {
 	  } else {
 	    mytemp3d->Draw(drawopt);
 	  }
+
+    SaveImage(mytemp3d, command);
 	}
 	break;
       }
@@ -1093,6 +1112,7 @@ void OnlineGUI::TreeDraw(map<TString,TString> &command) {
         TString myMD5 = tmpstring.MD5();
 	TH1* thathist = (TH1*)hobj;
 	thathist->SetNameTitle(myMD5,command["title"]);
+  SaveImage(thathist, command);
       }
     } else {
       BadDraw("Empty Histogram");

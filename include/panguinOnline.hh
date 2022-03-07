@@ -63,6 +63,7 @@ private:
   Bool_t                            fUpdate;
   Bool_t                            fFileAlive;
   Bool_t                            fPrintOnly;
+  Bool_t                            fSaveImages;
   TH1D                             *mytemp1d;
   TH2D                             *mytemp2d;
   TH3D                             *mytemp3d;
@@ -73,10 +74,11 @@ private:
   int fVerbosity;
 
 public:
-  OnlineGUI(OnlineConfig&, Bool_t,int);
+  OnlineGUI(OnlineConfig&, Bool_t,int, Bool_t);
   void CreateGUI(const TGWindow *p, UInt_t w, UInt_t h);
   virtual ~OnlineGUI();
   void DoDraw();
+  void SaveImage(TObject* o,std::map<TString,TString> &command);
   void DrawPrev();
   void DrawNext();
   void DoListBox(Int_t id);
