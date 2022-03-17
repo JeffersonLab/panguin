@@ -10,7 +10,7 @@ using namespace std;
 
 clock_t tStart;
 void Usage();
-void online(TString type="standard",UInt_t run=0,Bool_t printonly=kFALSE, int verbosity=0);
+void online(TString type="standard",UInt_t run=0,Bool_t printonly=kFALSE, int verbosity=0, Bool_t saveImages=kFALSE);
 
 int main(int argc, char **argv){
   tStart = clock();
@@ -18,6 +18,7 @@ int main(int argc, char **argv){
   TString type="default";
   UInt_t run=0;
   Bool_t printonly=kFALSE;
+  Bool_t saveImages=kFALSE;
   Bool_t showedUsage=kFALSE;
   int verbosity(0);
 
@@ -45,6 +46,9 @@ int main(int argc, char **argv){
     } else if (sArg=="-P") {
       printonly = kTRUE;
       cout <<  " PrintOnly" << endl;
+    } else if (sArg=="-I") {
+      saveImages = kTRUE;
+      cout <<  " save Images" << endl;
     } else if (sArg=="-h") {
       if(!showedUsage) Usage();
       showedUsage=kTRUE;
@@ -68,7 +72,7 @@ int main(int argc, char **argv){
     gROOT->ProcessLine(".x ~/rootlogon.C");
   }
   
-  online(type,run,printonly,verbosity);
+  online(type,run,printonly,verbosity,saveImages);
   theApp.Run();
 
   cout<<"Done. Time passed: "
@@ -78,7 +82,7 @@ int main(int argc, char **argv){
 }
 
 
-void online(TString type,UInt_t run,Bool_t printonly, int ver){
+void online(TString type,UInt_t run,Bool_t printonly, int ver, Bool_t saveImages){
 
   if(printonly) {
     if(!gROOT->IsBatch()) {
@@ -100,7 +104,7 @@ void online(TString type,UInt_t run,Bool_t printonly, int ver){
   cout<<"Finished processing cfg. Init OnlineGUI. Time passed: "
       <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
 
-  new OnlineGUI(*fconfig,printonly,ver);
+  new OnlineGUI(*fconfig,printonly,ver,saveImages);
 
   cout<<"Finished init OnlineGUI. Time passed: "
       <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
