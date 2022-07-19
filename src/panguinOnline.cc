@@ -46,7 +46,7 @@ using namespace std;
 
 OnlineGUI::OnlineGUI(OnlineConfig& config, Bool_t printonly=0, int ver=0, Bool_t saveImages=0):
   runNumber(0),
-  timer(0), 
+  timer(0),
   timerNow(0),
   fFileAlive(kFALSE),
   fVerbosity(ver)
@@ -55,7 +55,7 @@ OnlineGUI::OnlineGUI(OnlineConfig& config, Bool_t printonly=0, int ver=0, Bool_t
 
   fConfig = &config;
   int bin2Dx(0), bin2Dy(0);
-  fConfig->Get2DnumberBins(bin2Dx,bin2Dy);    
+  fConfig->Get2DnumberBins(bin2Dx,bin2Dy);
   if(bin2Dx>0 && bin2Dy>0){
     gEnv->SetValue("Hist.Binning.2D.x",bin2Dx);
     gEnv->SetValue("Hist.Binning.2D.y",bin2Dy);
@@ -77,9 +77,9 @@ OnlineGUI::OnlineGUI(OnlineConfig& config, Bool_t printonly=0, int ver=0, Bool_t
   }
 }
 
-void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h) 
+void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
 {
-  
+
   // Open the RootFile.  Die if it doesn't exist.
   //  unless we're watching a file.
   fRootFile = new TFile(fConfig->GetRootFile(),"READ");
@@ -132,7 +132,7 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
   gClient->GetColorByName("lightblue",lightblue);
   gClient->GetColorByName("red",red);
 
-  Bool_t good_color=kFALSE; 
+  Bool_t good_color=kFALSE;
   TString usercolor = fConfig->GetGuiColor();
   if(!usercolor.IsNull()) {
     good_color = gClient->GetColorByName(usercolor,mainguicolor);
@@ -156,7 +156,7 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
   // Top frame, to hold page buttons and canvas
   fTopframe = new TGHorizontalFrame(fMain,w,UInt_t(h*0.9));
   fTopframe->SetBackgroundColor(mainguicolor);
-  fMain->AddFrame(fTopframe, new TGLayoutHints(kLHintsExpandX 
+  fMain->AddFrame(fTopframe, new TGLayoutHints(kLHintsExpandX
 					       | kLHintsExpandY,10,10,10,1));
 
   // Create a verticle frame widget
@@ -202,11 +202,11 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
   }
 
   if(!fConfig->IsMonitor()) {
-    wile = 
+    wile =
       new TGPictureButton(vframe,gClient->GetPicture(fConfig->GetGuiDirectory()+"/genius.xpm"));
     wile->Connect("Pressed()","OnlineGUI", this,"DoDraw()");
   } else {
-    wile = 
+    wile =
       new TGPictureButton(vframe,gClient->GetPicture(fConfig->GetGuiDirectory()+"/panguin.xpm"));
     wile->Connect("Pressed()","OnlineGUI", this,"DoDrawClear()");
   }
@@ -217,7 +217,7 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
 
   fTopframe->AddFrame(vframe,new TGLayoutHints(kLHintsLeft|
                                                kLHintsCenterY,2,2,2,2));
-  
+
   // Create canvas widget
   fEcanvas = new TRootEmbeddedCanvas("Ecanvas", fTopframe, UInt_t(w*0.7), UInt_t(h*0.9));
   fEcanvas->SetBackgroundColor(mainguicolor);
@@ -229,7 +229,7 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
   fBottomFrame = new TGHorizontalFrame(fMain,w,UInt_t(h*0.1));
   fBottomFrame->SetBackgroundColor(mainguicolor);
   fMain->AddFrame(fBottomFrame, new TGLayoutHints(kLHintsExpandX,10,10,10,10));
-  
+
   // Create a horizontal frame widget with buttons
   hframe = new TGHorizontalFrame(fBottomFrame,1200,40);
   hframe->SetBackgroundColor(mainguicolor);
@@ -251,7 +251,7 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
   fExit->Connect("Clicked()","OnlineGUI",this,"CloseGUI()");
 
   hframe->AddFrame(fExit, new TGLayoutHints(kLHintsCenterX,5,5,1,1));
-  
+
   TString Buff;
   if(runNumber==0) {
     Buff = "";
@@ -260,7 +260,7 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
     Buff += runNumber;
   }
   TGString labelBuff(Buff);
-  
+
   fRunNumber = new TGLabel(hframe,Buff);
   fRunNumber->SetBackgroundColor(mainguicolor);
   hframe->AddFrame(fRunNumber,new TGLayoutHints(kLHintsCenterX,5,5,1,1));
@@ -280,10 +280,10 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
 
   // Map all sub windows to main frame
   fMain->MapSubwindows();
-  
+
   // Initialize the layout algorithm
   fMain->Resize(fMain->GetDefaultSize());
-  
+
   // Map main frame
   fMain->MapWindow();
 
@@ -310,7 +310,7 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
 
 }
 
-void OnlineGUI::DoDraw() 
+void OnlineGUI::DoDraw()
 {
   // The main Drawing Routine.
 
@@ -344,10 +344,10 @@ void OnlineGUI::DoDraw()
   // gROOT->ForceStyle();
 
   TGaxis::SetMaxDigits(3);
-  
+
   gStyle->SetNdivisions(505,"XYZ");
   gROOT->ForceStyle();
-  
+
   // Determine the dimensions of the canvas..
   UInt_t draw_count = fConfig->GetDrawCount(current_page);
   if(draw_count>=8) {
@@ -358,7 +358,7 @@ void OnlineGUI::DoDraw()
   pair <UInt_t,UInt_t> dim = fConfig->GetPageDim(current_page);
 
   if(fVerbosity>=1)
-    cout << "Dimensions: " << dim.first << "X" 
+    cout << "Dimensions: " << dim.first << "X"
 	 << dim.second << endl;
 
   // Create a nice clean canvas.
@@ -368,9 +368,9 @@ void OnlineGUI::DoDraw()
   //  vector <TString> drawcommand(5);
   map<TString,TString> drawcommand;
   //options are "variable", "cut", "drawopt", "title", "treename", "grid", "nostat"
-  
+
   // Draw the histograms.
-  for(UInt_t i=0; i<draw_count; i++) {    
+  for(UInt_t i=0; i<draw_count; i++) {
     fConfig->GetDrawCommand(current_page,i, drawcommand);
     fCanvas->cd(i+1);
 
@@ -388,7 +388,7 @@ void OnlineGUI::DoDraw()
       }
     }
   }
-      
+
   fCanvas->cd();
   fCanvas->Update();
 
@@ -445,7 +445,7 @@ void OnlineGUI::DrawPrev()
   fPageListBox->Select(current_selection-1);
   current_page = current_selection - 1;
 
-  DoDraw();  
+  DoDraw();
 }
 
 void OnlineGUI::DoListBox(Int_t id)
@@ -456,7 +456,7 @@ void OnlineGUI::DoListBox(Int_t id)
 
 }
 
-void OnlineGUI::CheckPageButtons() 
+void OnlineGUI::CheckPageButtons()
 {
   // Checks the current page to see if it's the first or last page.
   //  If so... turn off the appropriate button.
@@ -476,7 +476,7 @@ void OnlineGUI::CheckPageButtons()
   }
 }
 
-Bool_t OnlineGUI::IsHistogram(TString objectname) 
+Bool_t OnlineGUI::IsHistogram(TString objectname)
 {
   // Utility to determine if the objectname provided is a histogram
 
@@ -495,7 +495,7 @@ Bool_t OnlineGUI::IsHistogram(TString objectname)
 
 }
 
-void OnlineGUI::GetFileObjects() 
+void OnlineGUI::GetFileObjects()
 {
   // Utility to find all of the objects within a File (TTree, TH1F, etc).
   //  The pair stored in the vector is <ObjName, ObjType>
@@ -517,7 +517,7 @@ void OnlineGUI::GetFileObjects()
   // Do the search
   while((key=(TKey*)next())!=0) {
     if(fVerbosity>=1)
-      cout << "Key = " << key << endl;    
+      cout << "Key = " << key << endl;
 
     TString objname = key->GetName();
     TString objtype = key->GetClassName();
@@ -531,7 +531,7 @@ void OnlineGUI::GetFileObjects()
   delete key;
 }
 
-void OnlineGUI::GetTreeVars() 
+void OnlineGUI::GetTreeVars()
 {
   // Utility to find all of the variables (leaf's/branches) within a
   // Specified TTree and put them within the treeVars vector.
@@ -571,7 +571,7 @@ void OnlineGUI::GetRootTree() {
 
   list <TString> found;
   for(UInt_t i=0; i<fileObjects.size(); i++) {
-    
+
     if(fVerbosity>=2)
       cout << "Object = " << fileObjects[i].second <<
 	"     Name = " << fileObjects[i].first << endl;
@@ -587,20 +587,20 @@ void OnlineGUI::GetRootTree() {
   for(UInt_t i=0; i<nTrees; i++) {
     fRootTree.push_back((TTree*)fRootFile->Get(found.front()));
     found.pop_front();
-  }  
+  }
   // Initialize the fTreeEntries vector
   fTreeEntries.clear();
   for(UInt_t i=0;i<fRootTree.size();i++) {
     fTreeEntries.push_back(0);
   }
-  
+
 }
 
 UInt_t OnlineGUI::GetTreeIndex(TString var) {
   // Utility to find out which Tree (in fRootTree) has the specified
   // variable "var".  If the variable is a collection of Tree
   // variables (e.g. bcm1:lumi1), will only check the first
-  // (e.g. bcm1).  
+  // (e.g. bcm1).
   // Returns the correct index.  if not found returns an index 1
   // larger than fRootTree.size()
 
@@ -675,18 +675,18 @@ void OnlineGUI::MacroDraw(std::map<TString,TString> &command) {
 
   if(doGolden) fRootFile->cd();
   gROOT->Macro(command["macro"]);
-  
+
 
 }
 
 void OnlineGUI::LoadDraw(std::map<TString,TString> &command) {
-  // Called by DoDraw(), this will load a shared object library 
+  // Called by DoDraw(), this will load a shared object library
   // and then make a call to the defined macro, and
   // plot it in it's own pad.  One plot per macro, please.
 
   //  TString slib("library");
   //TString smacro("macro");
-  
+
   if(command.find("library") == command.end() ||
      command.find("macro") == command.end() ) {
     cout << "load command is missing either a shared library or macro command or both" << endl;
@@ -696,7 +696,7 @@ void OnlineGUI::LoadDraw(std::map<TString,TString> &command) {
   if(doGolden) fRootFile->cd();
   gSystem->Load(command["library"]);
   gROOT->Macro(command["macro"]);
-  
+
 
 }
 
@@ -721,7 +721,7 @@ void OnlineGUI::DoDrawClear() {
   for(UInt_t i=0; i<fTreeEntries.size(); i++) {
     fTreeEntries[i] = (Int_t) fRootTree[i]->GetEntries();
   }
-  
+
 
 }
 
@@ -804,7 +804,7 @@ void OnlineGUI::UpdateCurrentTime() {
   strftime(buffer, 9, "%T", localtime(&t));
   TString sNow("Current time: ");
   sNow += buffer;
-  fNow->SetText(sNow); 
+  fNow->SetText(sNow);
   timerNow->Reset();
 }
 
@@ -827,7 +827,7 @@ void OnlineGUI::BadDraw(TString errMessage) {
 void OnlineGUI::CheckRootFile() {
   // Check the path to the rootfile (should follow symbolic links)
   // ... If found:
-  //   Reopen new root file, 
+  //   Reopen new root file,
   //   Reconnect the timer to TimerUpdate()
 
   if(gSystem->AccessPathName(fConfig->GetRootFile())==0) {
@@ -940,8 +940,8 @@ void OnlineGUI::HistDraw(std::map<TString,TString> &command) {
     showstat = false;
   }
 
-  
-  
+
+
   // Determine dimensionality of histogram
   for(UInt_t i=0; i<fileObjects.size(); i++) {
     if (fileObjects[i].first.Contains(command["variable"])) {
@@ -993,7 +993,7 @@ void OnlineGUI::HistDraw(std::map<TString,TString> &command) {
 	  if( drawopt.Contains("colz") ){
 	    gPad->SetRightMargin(0.15);
 	  }
-	  
+
 	  if( newtitle != "" ) mytemp2d->SetTitle(newtitle);
 	  mytemp2d->SetStats(showstat);
 	  mytemp2d->Draw(drawopt);
@@ -1044,7 +1044,7 @@ void OnlineGUI::TreeDraw(map<TString,TString> &command) {
   } else {
     histoname = "htemp";
   }
-  
+
   // Combine the cuts (definecuts and specific cuts)
   TCut cut = "";
   TString tempCut;
@@ -1076,7 +1076,7 @@ void OnlineGUI::TreeDraw(map<TString,TString> &command) {
   std::cout << "drawopt = " << drawopt << std::endl;
 
   if( drawopt.Contains("colz") ) gPad->SetRightMargin(0.15);
-  
+
   if(fVerbosity>=3)
     cout<<"\tDraw option:"<<drawopt<<" and histo name "<<histoname<<endl;
   Int_t errcode=0;
@@ -1139,7 +1139,7 @@ void OnlineGUI::PrintToFile()
   gStyle->SetPaperSize(20,24);
   static TString dir("printouts");
   TGFileInfo fi;
-  const char *myfiletypes[] = 
+  const char *myfiletypes[] =
     { "All files","*",
       "Portable Document Format","*.pdf",
       "PostScript files","*.ps",
@@ -1155,9 +1155,9 @@ void OnlineGUI::PrintToFile()
 }
 
 void OnlineGUI::PrintPages() {
-  // Routine to go through each defined page, and print the output to 
+  // Routine to go through each defined page, and print the output to
   // a postscript file. (good for making sample histograms).
-  
+
   // Open the RootFile
   //  unless we're watching a file.
   fRootFile = new TFile(fConfig->GetRootFile(),"READ");
@@ -1176,7 +1176,7 @@ void OnlineGUI::PrintPages() {
 	fRootTree.erase(fRootTree.begin() + i);
       }
     }
-    
+
   }
   TString goldenfilename=fConfig->GetGoldenFile();
   if(!goldenfilename.IsNull()) {
@@ -1216,7 +1216,7 @@ void OnlineGUI::PrintPages() {
   }
 
   filename.Prepend(plotsdir+"/");
-  if(pagePrint) 
+  if(pagePrint)
     filename += "_pageXXXX";
   TString fConfName = fConfig->GetConfFileName();
   TString fCfgNm = fConfName(fConfName.Last('/')+1,fConfName.Length());
@@ -1243,7 +1243,7 @@ void OnlineGUI::PrintPages() {
     current_page=i;
     DoDraw();
     TString pagename = pagehead;
-    pagename += " ";   
+    pagename += " ";
     pagename += i;
     pagename += ": ";
     pagename += fConfig->GetPageTitle(current_page);
@@ -1252,13 +1252,13 @@ void OnlineGUI::PrintPages() {
     if(pagePrint) {
       filename = origFilename;
       filename.ReplaceAll("XXXX",Form("%02d",current_page));
-      cout << "Printing page " << current_page 
+      cout << "Printing page " << current_page
 	   << " to file = " << filename << endl;
     }
     fCanvas->Print(filename);
   }
   if(!pagePrint) fCanvas->Print(filename+"]");
-  
+
   gApplication->Terminate();
 }
 
@@ -1290,7 +1290,7 @@ void OnlineGUI::MyCloseWindow()
   gApplication->Terminate();
 }
 
-void OnlineGUI::CloseGUI() 
+void OnlineGUI::CloseGUI()
 {
   // Routine to take care of the Exit GUI button
   fMain->SendCloseMessage();

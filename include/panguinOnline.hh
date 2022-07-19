@@ -85,7 +85,7 @@ public:
   void GetRootTree();
   UInt_t GetTreeIndex(TString);
   UInt_t GetTreeIndexFromName(TString);
-  void TreeDraw(std::map<TString,TString> &command); 
+  void TreeDraw(std::map<TString,TString> &command);
   void HistDraw(std::map<TString,TString> &command);
   void MacroDraw(std::map<TString,TString> &command);
   void LoadDraw(std::map<TString,TString> &command);

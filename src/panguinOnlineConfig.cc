@@ -37,16 +37,16 @@ OnlineConfig::OnlineConfig(TString anatype):
   guiDirectory = default_gui_directory;
 
   cout << "guiDirectory = " << guiDirectory << endl;
-  
-  
+
+
 
   //If the user environment points to something else, use that:
   if( getenv("PANGUIN_CONFIG_DIR") ){
-    guiDirectory = getenv("PANGUIN_CONFIG_DIR"); 
+    guiDirectory = getenv("PANGUIN_CONFIG_DIR");
   }
 
   std::cout << "guiDirectory = " << guiDirectory << endl;
-  
+
   //confFileName += ".cfg";//Not sure what this would be needed DELETEME cg
   fMonitor = kFALSE;
   fFoundCfg = kFALSE;
@@ -59,7 +59,7 @@ OnlineConfig::OnlineConfig(TString anatype):
     fConfFile = new ifstream(confFileName.Data());
     if ( ! (*fConfFile) ) {
       confFileName = guiDirectory+"/default.cfg";
-      cout << "OnlineConfig()  Trying " << confFileName.Data() 
+      cout << "OnlineConfig()  Trying " << confFileName.Data()
 	   << " as default configuration." << endl
 	   << " (May be ok.)" << endl;
       fConfFile = new ifstream(confFileName.Data());
@@ -80,7 +80,7 @@ OnlineConfig::OnlineConfig(TString anatype):
   }
 
   if(fFoundCfg) {
-    clog << "GUI Configuration loading from " 
+    clog << "GUI Configuration loading from "
 	 << confFileName.Data() << endl;
   }
 
@@ -91,7 +91,7 @@ OnlineConfig::OnlineConfig(TString anatype):
 
 }
 
-void OnlineConfig::ParseFile() 
+void OnlineConfig::ParseFile()
 {
   // Reads in the Config File, and makes the proper calls to put
   //  the information contained into memory.
@@ -113,18 +113,18 @@ void OnlineConfig::ParseFile()
     cout << "OnlineConfig::ParseFile()\n";
     for(UInt_t ii=0; ii<sConfFile.size(); ii++) {
       cout << "Line " << ii << endl << "  ";
-      for(UInt_t jj=0; jj<sConfFile[ii].size(); jj++) 
+      for(UInt_t jj=0; jj<sConfFile[ii].size(); jj++)
 	cout << sConfFile[ii][jj] << " ";
       cout << endl;
     }
   }
 
-  cout << "     " << sConfFile.size() << " lines read from " 
+  cout << "     " << sConfFile.size() << " lines read from "
        << confFileName << endl;
-  
+
 }
 
-Bool_t OnlineConfig::ParseConfig() 
+Bool_t OnlineConfig::ParseConfig()
 {
   //  Goes through each line of the config [must have been ParseFile()'d]
   //   and interprets.
@@ -175,8 +175,8 @@ Bool_t OnlineConfig::ParseConfig()
 	continue;
       }
       if(!rootfilename.IsNull()) {
-	cerr << "WARNING: too many rootfile's defined. " 
-	     << " Will only use the first one." 
+	cerr << "WARNING: too many rootfile's defined. "
+	     << " Will only use the first one."
 	     << endl;
 	continue;
       }
@@ -192,8 +192,8 @@ Bool_t OnlineConfig::ParseConfig()
 	continue;
       }
       if(!goldenrootfilename.IsNull()) {
-	cerr << "WARNING: too many goldenrootfile's defined. " 
-	     << " Will only use the first one." 
+	cerr << "WARNING: too many goldenrootfile's defined. "
+	     << " Will only use the first one."
 	     << endl;
 	continue;
       }
@@ -207,8 +207,8 @@ Bool_t OnlineConfig::ParseConfig()
 	continue;
       }
       if(!protorootfile.IsNull()) {
-	cerr << "WARNING: too many protorootfile's defined. " 
-	     << " Will only use the first one." 
+	cerr << "WARNING: too many protorootfile's defined. "
+	     << " Will only use the first one."
 	     << endl;
 	continue;
       }
@@ -222,8 +222,8 @@ Bool_t OnlineConfig::ParseConfig()
 	continue;
       }
       if(!guicolor.IsNull()) {
-	cerr << "WARNING: too many guicolor's defined. " 
-	     << " Will only use the first one." 
+	cerr << "WARNING: too many guicolor's defined. "
+	     << " Will only use the first one."
 	     << endl;
 	continue;
       }
@@ -237,8 +237,8 @@ Bool_t OnlineConfig::ParseConfig()
 	continue;
       }
       if(!plotsdir.IsNull()) {
-	cerr << "WARNING: too many plotdir's defined. " 
-	     << " Will only use the first one." 
+	cerr << "WARNING: too many plotdir's defined. "
+	     << " Will only use the first one."
 	     << endl;
 	continue;
       }
@@ -260,7 +260,7 @@ Bool_t OnlineConfig::ParseConfig()
     cout << "OnlineConfig::ParseConfig()\n";
     for(UInt_t i=0; i<GetPageCount(); i++) {
       cout << "Page " << i << " (" << GetPageTitle(i) << ")"
-	   << " will draw " << GetDrawCount(i) 
+	   << " will draw " << GetDrawCount(i)
 	   << " histograms." << endl;
     }
   }
@@ -268,11 +268,11 @@ Bool_t OnlineConfig::ParseConfig()
   cout << "Number of pages defined = " << GetPageCount() << endl;
   cout << "Number of cuts defined = " << cutList.size() << endl;
 
-  if (fMonitor) 
+  if (fMonitor)
     cout << "Will periodically update plots" << endl;
   if(!goldenrootfilename.IsNull()) {
-    cout << "Will compare chosen histrograms with the golden rootfile: " 
-	 << endl 
+    cout << "Will compare chosen histrograms with the golden rootfile: "
+	 << endl
 	 << goldenrootfilename << endl;
   }
 
@@ -310,13 +310,13 @@ Bool_t OnlineConfig::IsLogy(UInt_t page) {
   UInt_t page_index = pageInfo[page].first;
   Int_t word_index = sConfFile[page_index].size()-1;
   if (word_index <= 0) return kFALSE;
-  TString option = sConfFile[page_index][word_index];  
+  TString option = sConfFile[page_index][word_index];
   if(option == "logy") {
     printf("\nFound a logy!!!\n\n");
     return kTRUE;
   }
   if(fVerbosity>=1){
-    cout << "OnlineConfig::IsLogy()     " << option << " " << page_index << " " << word_index 
+    cout << "OnlineConfig::IsLogy()     " << option << " " << page_index << " " << word_index
 	 << " " << sConfFile[page_index].size() << endl;
     for (Int_t i= 0; i < sConfFile[page_index].size(); i++) {
       cout << sConfFile[page_index][i] << " ";
@@ -327,7 +327,7 @@ Bool_t OnlineConfig::IsLogy(UInt_t page) {
 
 }
 
-pair <UInt_t, UInt_t> OnlineConfig::GetPageDim(UInt_t page) 
+pair <UInt_t, UInt_t> OnlineConfig::GetPageDim(UInt_t page)
 {
   // If defined in the config, will return those dimensions
   //  for the indicated page.  Otherwise, will return the
@@ -337,10 +337,10 @@ pair <UInt_t, UInt_t> OnlineConfig::GetPageDim(UInt_t page)
 
   // This is the page index in sConfFile.
   UInt_t page_index = pageInfo[page].first;
-  
+
   UInt_t size1 = 2;
   if (IsLogy(page)) size1 = 3;  // last word is "logy"
-  
+
   // If the dimensions are defined, return them.
   if(sConfFile[page_index].size()>size1-1) {
     if(sConfFile[page_index].size() == size1) {
@@ -357,7 +357,7 @@ pair <UInt_t, UInt_t> OnlineConfig::GetPageDim(UInt_t page)
 	   << endl;
     }
   }
-  
+
   // If not defined, return the "default."
   UInt_t draw_count = GetDrawCount(page);
   UInt_t dim = UInt_t(TMath::Nint(sqrt(double(draw_count+1))));
@@ -366,7 +366,7 @@ pair <UInt_t, UInt_t> OnlineConfig::GetPageDim(UInt_t page)
   return outDim;
 }
 
-TString OnlineConfig::GetPageTitle(UInt_t page) 
+TString OnlineConfig::GetPageTitle(UInt_t page)
 {
   // Returns the title of the page.
   //  if it is not defined in the config, then return "Page #"
@@ -376,7 +376,7 @@ TString OnlineConfig::GetPageTitle(UInt_t page)
   UInt_t iter_command = pageInfo[page].first+1;
 
   for(UInt_t i=0; i<pageInfo[page].second; i++) { // go through each command
-    if(sConfFile[iter_command+i][0] == "title") { 
+    if(sConfFile[iter_command+i][0] == "title") {
       // Combine the strings, and return it
       for (UInt_t j=1; j<sConfFile[iter_command+i].size(); j++) {
 	title += sConfFile[iter_command+i][j];
@@ -390,7 +390,7 @@ TString OnlineConfig::GetPageTitle(UInt_t page)
   return title;
 }
 
-vector <UInt_t> OnlineConfig::GetDrawIndex(UInt_t page) 
+vector <UInt_t> OnlineConfig::GetDrawIndex(UInt_t page)
 {
   // Returns an index of where to find the draw commands within a page
   //  within the sConfFile vector
@@ -407,7 +407,7 @@ vector <UInt_t> OnlineConfig::GetDrawIndex(UInt_t page)
   return index;
 }
 
-UInt_t OnlineConfig::GetDrawCount(UInt_t page) 
+UInt_t OnlineConfig::GetDrawCount(UInt_t page)
 {
   // Returns the number of histograms that have been request for this page
   UInt_t draw_count=0;
@@ -422,7 +422,7 @@ UInt_t OnlineConfig::GetDrawCount(UInt_t page)
 
 void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString,TString> &out_command)
 {
-  // Returns the vector of strings pertaining to a specific page, and 
+  // Returns the vector of strings pertaining to a specific page, and
   //   draw command from the config.
   // Return map<TString,TString> in out_command:
   //Following options are implemented:
@@ -435,17 +435,17 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
   // 7. "-noshowgolden" --> don't show "golden" histogram even if goldenrootfile is defined
   // 8. any option not preceded by these indicators is assumed to be a cut or macro expression:
   //what options do we want?
-  // all options on one line. First argument assumed to be histogram or tree name (or "macro") 
+  // all options on one line. First argument assumed to be histogram or tree name (or "macro")
 
   out_command.clear();
-  
+
   //vector <TString> out_command(6);
   vector <UInt_t> command_vector = GetDrawIndex(page);
   UInt_t index = command_vector[nCommand];
 
   if(fVerbosity > 1){
     cout<<__PRETTY_FUNCTION__<<"\t"<<__LINE__<<endl;
-    cout << "OnlineConfig::GetDrawCommand(" << page << "," 
+    cout << "OnlineConfig::GetDrawCommand(" << page << ","
 	 << nCommand << ")" << endl;
   }
 
@@ -464,7 +464,7 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
     for( int i=1; i<sConfFile[index].size(); i++){
       macrocmd += sConfFile[index][i];
     }
-    
+
     out_command["macro"] = macrocmd;
     return;
   }
@@ -478,7 +478,7 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
   if( out_command["variable"] == "loadlib" && sConfFile[index].size() > 1 ){
     out_command["library"] = sConfFile[index][1]; //shared library to load
   }
-  
+
   // Now go through the rest of that line..
   for (UInt_t i=1; i<sConfFile[index].size(); i++) {
     if(sConfFile[index][i]=="-drawopt" && i+1 < sConfFile[index].size() ) {
@@ -529,12 +529,12 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
       }
       if (i==sConfFile[index].size() && !(sConfFile[index][i-1].EndsWith("\"")) ){
         // unmatched double quote
-        cout << "Error, unmatched double quote, please check you config file. Quitting" << endl;  
+        cout << "Error, unmatched double quote, please check you config file. Quitting" << endl;
         exit(1);
       }
 
       out_command["title"] = title;
-      
+
       // if (out_command[3].IsNull()){
       //   out_command[3] = title;
       // } else {
@@ -562,7 +562,7 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
     } else if(sConfFile[index][i]=="-logx" ) {
       out_command["logx"] = "logx";
     } else if(sConfFile[index][i]=="-logy" ) {
-      out_command["logy"] = "logy";	
+      out_command["logy"] = "logy";
     } else if( sConfFile[index][i]=="-logz" ) {
       out_command["logz"] = "logz";
     } else if( sConfFile[index][i]=="-nostat" ) {
@@ -595,7 +595,7 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
   return;
 }
 
-vector <TString> OnlineConfig::SplitString(TString instring,TString delim) 
+vector <TString> OnlineConfig::SplitString(TString instring,TString delim)
 {
   // Utility to split up a string on the deliminator.
   //  returns a vector of strings.
@@ -620,13 +620,13 @@ vector <TString> OnlineConfig::SplitString(TString instring,TString delim)
   while(tempstring.EndsWith(delim)) {
     tempstring.Chop();
   }
-     
+
   if(!tempstring.IsNull()) v.push_back(tempstring);
 
   return v;
 }
 
-void OnlineConfig::OverrideRootFile(UInt_t runnumber) 
+void OnlineConfig::OverrideRootFile(UInt_t runnumber)
 {
   // Override the ROOT file defined in the cfg file If
   // protorootfile is used, construct filename using it, otherwise
@@ -701,4 +701,3 @@ void OnlineConfig::OverrideRootFile(UInt_t runnumber)
     }
   }
 }
-
