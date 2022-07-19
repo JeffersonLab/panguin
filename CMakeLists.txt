@@ -1,8 +1,8 @@
-# Require at least cmake 2.8.4
-cmake_minimum_required(VERSION 2.8.4 FATAL_ERROR)
+# Need CMake >= 3.0 because of use of CMake targets like ROOT::Libraries etc.
+cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 
 # Name of this project
-project(panguin)
+project(panguin LANGUAGES CXX)
 
 # Install in GNU-style directory layout  (copied from japan/CMakeLists.txt)
 include(GNUInstallDirs)
