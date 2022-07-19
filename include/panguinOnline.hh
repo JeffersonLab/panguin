@@ -12,8 +12,6 @@
 #include <TRootEmbeddedCanvas.h>
 #include "TGLabel.h"
 #include "TGString.h"
-#include <RQ_OBJECT.h>
-#include <TQObject.h>
 #include <vector>
 #include <map>
 #include <set>
@@ -28,9 +26,6 @@
 #define UPDATETIME 10000
 
 class OnlineGUI {
-  // Class that takes care of the GUI
-  RQ_OBJECT("OnlineGUI")
-private:
   TGMainFrame                      *fMain;
   TGHorizontalFrame                *fTopframe;
   TGVerticalFrame                  *vframe;
