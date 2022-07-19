@@ -40,7 +40,15 @@ endif()
 find_package(ROOT 6 REQUIRED Gui Minuit2)
 include_directories(${ROOT_INCLUDE_DIR})
 
-add_definitions(-std=c++11)
+# If available, link with Hall A analyzer libraries to avoid nuisance warnings
+# about missing dictionaries (THaRun, THaEventHeader, etc.) in ROOT files
+if(DEFINED ENV{ANALYZER})
+  set(CMAKE_PREFIX_PATH "$ENV{ANALYZER}" "${CMAKE_PREFIX_PATH}")
+  find_package(Podd 1.6 QUIET)
+  if(Podd_FOUND)
+    set(PODD_LIBS Podd::Podd)
+  endif()
+endif()
 
 # ROOT dictionary needed for interactive ROOT graphics support
 build_root_dictionary(
@@ -68,7 +76,7 @@ file(GLOB headers ${PROJECT_SOURCE_DIR}/include/*.hh)
 #
 add_library(panguin-lib SHARED ${sources} ${headers} panguinDict.cxx)
 set_target_properties(panguin-lib PROPERTIES OUTPUT_NAME panguin)
-target_link_libraries(panguin-lib PUBLIC  ROOT::Libraries)
+target_link_libraries(panguin-lib PUBLIC ${PODD_LIBS} ROOT::Libraries)
 
 add_executable(panguin-bin panguin.cc)
 set_target_properties(panguin-bin PROPERTIES OUTPUT_NAME panguin)
