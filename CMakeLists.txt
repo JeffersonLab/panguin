@@ -36,18 +36,15 @@ else()
   set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 endif()
 
-# Add the project include directory
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
-
 # Load ROOT and setup include directory
 find_package(ROOT 6 REQUIRED Gui Minuit2)
 include_directories(${ROOT_INCLUDE_DIR})
 
 add_definitions(-std=c++11)
 
-
+# ROOT dictionary needed for interactive ROOT graphics support
 build_root_dictionary(
-    panguin                         # path to dictionary to generate
+    panguin             # dictionary base name -> panguinDict.cxx
     ${PROJECT_SOURCE_DIR}/include/panguinOnlineConfig.hh
     ${PROJECT_SOURCE_DIR}/include/panguinOnline.hh
     TARGETS panguin
@@ -67,9 +64,7 @@ file(GLOB sources ${PROJECT_SOURCE_DIR}/src/*.cc)
 file(GLOB headers ${PROJECT_SOURCE_DIR}/include/*.hh)
 
 #----------------------------------------------------------------------------
-# Add the executable, and link it to the Geant4 libraries
-#----------------------------------------------------------------------------
-# Generate dictionaries as well (so we can write objects to ROOT files
+# Add the executable
 #
 add_library(panguin-lib SHARED ${sources} ${headers} panguinDict.cxx)
 set_target_properties(panguin-lib PROPERTIES OUTPUT_NAME panguin)
