@@ -101,6 +101,6 @@ public:
   void MyCloseWindow();
   void CloseGUI();
   void SetVerbosity(int ver){fVerbosity=ver;}
-  ClassDef(OnlineGUI,0);
+  ClassDef(OnlineGUI,0)
 };
 #endif //panguinOnline_h
