@@ -3,29 +3,30 @@
 #include <fstream>
 #include <iostream>
 #include <list>
+#include <utility>
 #include <TMath.h>
 #include <unistd.h>
 #include <dirent.h>
 
 using namespace std;
 
-OnlineConfig::OnlineConfig() 
-  :hist2D_nBinsX(0),hist2D_nBinsY(0), 
-   fPlotFormat(""),fRunNumber(0)
-{
-  // Constructor.  Without an argument, will use default "standard" config
-  fMonitor = kFALSE;
-  fVerbosity = 0;
-  OnlineConfig("standard");
-}
+// Constructor.  Without an argument, will use default "standard" config
+OnlineConfig::OnlineConfig()
+  : OnlineConfig("standard")
+{}
 
-OnlineConfig::OnlineConfig(TString anatype): 
-  confFileName(anatype),fVerbosity(0),
-  hist2D_nBinsX(0),hist2D_nBinsY(0), 
-  fPlotFormat(""),fRunNumber(0)
+// Constructor.  Takes the config anatype as the only argument.
+//  Loads up the configuration file, and stores its contents for access.
+OnlineConfig::OnlineConfig(TString anatype)
+  : confFileName(std::move(anatype))
+  , fConfFile(nullptr)
+  , fFoundCfg(false)
+  , fMonitor(false)
+  , fVerbosity(0)
+  , hist2D_nBinsX(0)
+  , hist2D_nBinsY(0)
+  , fRunNumber(0)
 {
-  // Constructor.  Takes the config anatype as the only argument.
-  //  Loads up the configuration file, and stores it's contents for access.
 
   TString default_gui_directory = ".";
   if( getenv("SBS_REPLAY") != nullptr ){
@@ -46,10 +47,6 @@ OnlineConfig::OnlineConfig(TString anatype):
   }
 
   std::cout << "guiDirectory = " << guiDirectory << endl;
-
-  //confFileName += ".cfg";//Not sure what this would be needed DELETEME cg
-  fMonitor = kFALSE;
-  fFoundCfg = kFALSE;
 
   fConfFile = new ifstream(confFileName.Data());
   if ( ! (*fConfFile) ) {    cerr << "OnlineConfig() WARNING: config file " << confFileName.Data()
