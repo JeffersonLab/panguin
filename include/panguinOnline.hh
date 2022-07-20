@@ -43,7 +43,7 @@ class OnlineGUI {
   TGLabel                          *fRunNumber;
   TGTextButton                     *fPrint;
   TCanvas                          *fCanvas; // Present Embedded canvas
-  OnlineConfig                     *fConfig;
+  OnlineConfig                     fConfig;
   UInt_t                            current_page;
   TFile*                            fRootFile;
   TFile*                            fGoldenFile;
@@ -69,7 +69,8 @@ class OnlineGUI {
   int fVerbosity;
 
 public:
-  OnlineGUI(OnlineConfig&, Bool_t,int, Bool_t);
+  explicit OnlineGUI(const OnlineConfig& config);
+  explicit OnlineGUI(OnlineConfig&& config);
   void CreateGUI(const TGWindow *p, UInt_t w, UInt_t h);
   virtual ~OnlineGUI();
   void DoDraw();

@@ -12,20 +12,28 @@ using namespace std;
 
 // Constructor.  Without an argument, will use default "standard" config
 OnlineConfig::OnlineConfig()
-  : OnlineConfig("standard")
+  : OnlineConfig("default.cfg")
 {}
 
-// Constructor.  Takes the config anatype as the only argument.
+// Constructor.  Takes the config file name as the only argument.
 //  Loads up the configuration file, and stores its contents for access.
-OnlineConfig::OnlineConfig(TString anatype)
-  : confFileName(std::move(anatype))
+OnlineConfig::OnlineConfig(const TString& config_file_name)
+  : OnlineConfig(CmdLineOpts{config_file_name.Data()})
+{
+
+}
+OnlineConfig::OnlineConfig(const CmdLineOpts& opts)
+  : confFileName(opts.cfgfile)
   , fConfFile(nullptr)
   , fFoundCfg(false)
   , fMonitor(false)
-  , fVerbosity(0)
+  , fVerbosity(opts.verbosity)
   , hist2D_nBinsX(0)
   , hist2D_nBinsY(0)
-  , fRunNumber(0)
+  , fRunNumber(opts.run)
+  , fPrintOnly(opts.printonly)
+  , fSaveImages(opts.saveimages)
+  , fPlotFormat(opts.plotfmt)
 {
 
   TString default_gui_directory = ".";
@@ -84,7 +92,7 @@ OnlineConfig::OnlineConfig(TString anatype)
   ParseFile();
 
   fConfFile->close();
-  delete fConfFile;
+  delete fConfFile; fConfFile = nullptr;
 
 }
 

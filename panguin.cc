@@ -11,8 +11,7 @@
 using namespace std;
 
 clock_t tStart;
-void Usage();
-void online(TString type="standard",UInt_t run=0,Bool_t printonly=kFALSE, int verbosity=0, Bool_t saveImages=kFALSE);
+void online( const OnlineConfig::CmdLineOpts& opts );
 
 int main(int argc, char **argv){
   tStart = clock();
@@ -73,7 +72,8 @@ int main(int argc, char **argv){
   }
 
   TApplication theApp("panguin2", &argc, argv, nullptr, -1);
-  online(cfgfile, run, printonly, verbosity, saveImages);
+  online(OnlineConfig::CmdLineOpts{
+    cfgfile, cfgdir, plotfmt, run, verbosity, printonly, saveImages});
   theApp.Run();
 
   cout<<"Done. Time passed: "
@@ -83,10 +83,10 @@ int main(int argc, char **argv){
 }
 
 
-void online(TString type,UInt_t run,Bool_t printonly, int ver, Bool_t saveImages){
+void online( const OnlineConfig::CmdLineOpts& opts ) {
 
-  if(printonly) {
-    if(!gROOT->IsBatch()) {
+  if( opts.printonly ) {
+    if( !gROOT->IsBatch() ) {
       gROOT->SetBatch();
     }
   }
@@ -94,30 +94,19 @@ void online(TString type,UInt_t run,Bool_t printonly, int ver, Bool_t saveImages
   cout<<"Starting processing cfg. Time passed: "
       <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
 
-  OnlineConfig *fconfig = new OnlineConfig(type);
-  fconfig->SetVerbosity(ver);
-  if(!fconfig->ParseConfig()) {
+  OnlineConfig fconfig(opts);
+  if( !fconfig.ParseConfig() )
     gApplication->Terminate();
-  }
 
-  if(run!=0) fconfig->OverrideRootFile(run);
+  if( opts.run != 0 )
+    fconfig.OverrideRootFile(opts.run);
 
   cout<<"Finished processing cfg. Init OnlineGUI. Time passed: "
       <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
 
-  new OnlineGUI(*fconfig,printonly,ver,saveImages);
+  new OnlineGUI(std::move(fconfig));
 
   cout<<"Finished init OnlineGUI. Time passed: "
       <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
 
-}
-
-void Usage(){
-  cerr << "Usage: online [-r] [-f] [-P]" << endl;
-  cerr << "Options:" << endl;
-  cerr << "  -r : runnumber" << endl;
-  cerr << "  -f : configuration file" << endl;
-  cerr << "  -v : verbosity level (>0)" << endl;
-  cerr << "  -P : Only Print Summary Plots" << endl;
-  cerr << endl;
 }

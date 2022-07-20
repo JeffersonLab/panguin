@@ -30,6 +30,7 @@
 #include "TGraph.h"
 #include "TGaxis.h"
 #include <map>
+#include <utility>
 
 #define OLDTIMERUPDATE
 
@@ -44,18 +45,18 @@ using namespace std;
 //
 //
 
-OnlineGUI::OnlineGUI(OnlineConfig& config, Bool_t printonly=0, int ver=0, Bool_t saveImages=0):
-  runNumber(0),
-  timer(0),
-  timerNow(0),
-  fFileAlive(kFALSE),
-  fVerbosity(ver)
+OnlineGUI::OnlineGUI(OnlineConfig&& config)
+  : fConfig(std::move(config))
+  , runNumber(0)
+  , timer(nullptr)
+  , timerNow(nullptr)
+  , fFileAlive(kFALSE)
+  , fVerbosity(fConfig.GetVerbosity())
+  , fSaveImages(fConfig.DoSaveImages())
 {
-  // Constructor.  Get the config pointer, and make the GUI.
-
-  fConfig = &config;
+  // Constructor. Make the GUI.
   int bin2Dx(0), bin2Dy(0);
-  fConfig->Get2DnumberBins(bin2Dx,bin2Dy);
+  fConfig.Get2DnumberBins(bin2Dx,bin2Dy);
   if(bin2Dx>0 && bin2Dy>0){
     gEnv->SetValue("Hist.Binning.2D.x",bin2Dx);
     gEnv->SetValue("Hist.Binning.2D.y",bin2Dy);
@@ -64,11 +65,7 @@ OnlineGUI::OnlineGUI(OnlineConfig& config, Bool_t printonly=0, int ver=0, Bool_t
     }
   }
 
-  if(saveImages) {
-      fSaveImages=kTRUE;
-  }
-
-  if(printonly) {
+  if( fConfig.DoPrintOnly() ) {
     fPrintOnly=kTRUE;
     PrintPages();
   } else {
@@ -77,24 +74,28 @@ OnlineGUI::OnlineGUI(OnlineConfig& config, Bool_t printonly=0, int ver=0, Bool_t
   }
 }
 
+OnlineGUI::OnlineGUI(const OnlineConfig& config )
+  : OnlineGUI(OnlineConfig(config))
+{}
+
 void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
 {
 
   // Open the RootFile.  Die if it doesn't exist.
   //  unless we're watching a file.
-  fRootFile = new TFile(fConfig->GetRootFile(),"READ");
+  fRootFile = new TFile(fConfig.GetRootFile(),"READ");
   if(!fRootFile->IsOpen()) {
-    cout << "ERROR:  rootfile: " << fConfig->GetRootFile()
+    cout << "ERROR:  rootfile: " << fConfig.GetRootFile()
 	 << " does not exist"
 	 << endl;
-    if(fConfig->IsMonitor()) {
+    if(fConfig.IsMonitor()) {
       cout << "Will wait... hopefully.." << endl;
     } else {
       gApplication->Terminate();
     }
   } else {
     fFileAlive = kTRUE;
-    runNumber = fConfig->GetRunNumber();
+    runNumber = fConfig.GetRunNumber();
     // Open the Root Trees.  Give a warning if it's not there..
     GetFileObjects();
     GetRootTree();
@@ -106,7 +107,7 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
     }
 
   }
-  TString goldenfilename=fConfig->GetGoldenFile();
+  TString goldenfilename=fConfig.GetGoldenFile();
   if(!goldenfilename.IsNull()) {
     fGoldenFile = new TFile(goldenfilename,"READ");
     if(!fGoldenFile->IsOpen()) {
@@ -133,7 +134,7 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
   gClient->GetColorByName("red",red);
 
   Bool_t good_color=kFALSE;
-  TString usercolor = fConfig->GetGuiColor();
+  TString usercolor = fConfig.GetGuiColor();
   if(!usercolor.IsNull()) {
     good_color = gClient->GetColorByName(usercolor,mainguicolor);
   }
@@ -142,7 +143,7 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
     if(!usercolor.IsNull()) {
       cout << "Bad guicolor (" << usercolor << ").. using default." << endl;
     }
-    if(fConfig->IsMonitor()) {
+    if(fConfig.IsMonitor()) {
       // Default background color for Online Monitor
       mainguicolor = lightgreen;
     } else {
@@ -170,15 +171,15 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
   fPageListBox->IntegralHeight(kTRUE);
 
   TString buff;
-  for(UInt_t i=0; i<fConfig->GetPageCount(); i++) {
-    buff = fConfig->GetPageTitle(i);
+  for(UInt_t i=0; i<fConfig.GetPageCount(); i++) {
+    buff = fConfig.GetPageTitle(i);
     fPageListBox->AddEntry(buff, i);
   }
 
   vframe->AddFrame(fPageListBox, new TGLayoutHints(kLHintsExpandX |
 						   kLHintsCenterY,5,5,3,4));
 
-  UInt_t maxsize = (fConfig->GetPageCount()+1 > 30) ? 30 : fConfig->GetPageCount()+1;
+  UInt_t maxsize = (fConfig.GetPageCount()+1 > 30) ? 30 : fConfig.GetPageCount()+1;
   fPageListBox->Resize(UInt_t(w*0.15),
 		       fPageListBox->GetItemVsize()*(maxsize));
 
@@ -187,7 +188,7 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
 			"DoListBox(Int_t)");
 
   // heartbeat below the picture, watchfile only
-  if(fConfig->IsMonitor()){
+  if(fConfig.IsMonitor()){
     fRootFileLastUpdated = new TGTextButton(vframe, "File updated at: XX:XX:XX");
     // fRootFileLastUpdated->SetWidth(156);
     vframe->AddFrame(fRootFileLastUpdated, new TGLayoutHints(kLHintsBottom | kLHintsRight, 5, 5, 3, 4));
@@ -201,13 +202,13 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
     vframe->AddFrame(fNow, new TGLayoutHints(kLHintsBottom | kLHintsRight, 5, 5, 3, 4));
   }
 
-  if(!fConfig->IsMonitor()) {
+  if(!fConfig.IsMonitor()) {
     wile =
-      new TGPictureButton(vframe,gClient->GetPicture(fConfig->GetGuiDirectory()+"/genius.xpm"));
+      new TGPictureButton(vframe,gClient->GetPicture(fConfig.GetGuiDirectory()+"/genius.xpm"));
     wile->Connect("Pressed()","OnlineGUI", this,"DoDraw()");
   } else {
     wile =
-      new TGPictureButton(vframe,gClient->GetPicture(fConfig->GetGuiDirectory()+"/panguin.xpm"));
+      new TGPictureButton(vframe,gClient->GetPicture(fConfig.GetGuiDirectory()+"/panguin.xpm"));
     wile->Connect("Pressed()","OnlineGUI", this,"DoDrawClear()");
   }
   wile->SetBackgroundColor(mainguicolor);
@@ -272,7 +273,7 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
 
 
   // Set a name to the main frame
-  if(fConfig->IsMonitor()) {
+  if(fConfig.IsMonitor()) {
     fMain->SetWindowName("Parity ANalysis GUI moNitor");
   } else {
     fMain->SetWindowName("Online Analysis GUI");
@@ -292,13 +293,13 @@ void OnlineGUI::CreateGUI(const TGWindow *p, UInt_t w, UInt_t h)
 
   if(fFileAlive) DoDraw();
 
-  if(fConfig->IsMonitor()) {
+  if(fConfig.IsMonitor()) {
     timerNow = new TTimer();
     timerNow->Connect(timerNow, "Timeout()", "OnlineGUI", this, "UpdateCurrentTime()");
     timerNow->Start(1000);  // update every second
   }
 
-  if(fConfig->IsMonitor()) {
+  if(fConfig.IsMonitor()) {
     timer = new TTimer();
     if(fFileAlive) {
       timer->Connect(timer,"Timeout()","OnlineGUI",this,"TimerUpdate()");
@@ -316,7 +317,7 @@ void OnlineGUI::DoDraw()
 
   gStyle->SetOptStat(1110);
   //gStyle->SetStatFontSize(0.1);
-  if (fConfig->IsLogy(current_page)) {
+  if (fConfig.IsLogy(current_page)) {
     gStyle->SetOptLogy(1);
   } else {
     gStyle->SetOptLogy(0);
@@ -349,13 +350,13 @@ void OnlineGUI::DoDraw()
   gROOT->ForceStyle();
 
   // Determine the dimensions of the canvas..
-  UInt_t draw_count = fConfig->GetDrawCount(current_page);
+  UInt_t draw_count = fConfig.GetDrawCount(current_page);
   if(draw_count>=8) {
     gStyle->SetLabelSize(0.08,"X");
     gStyle->SetLabelSize(0.08,"Y");
   }
   //   Int_t dim = Int_t(round(sqrt(double(draw_count))));
-  pair <UInt_t,UInt_t> dim = fConfig->GetPageDim(current_page);
+  pair <UInt_t,UInt_t> dim = fConfig.GetPageDim(current_page);
 
   if(fVerbosity>=1)
     cout << "Dimensions: " << dim.first << "X"
@@ -371,7 +372,7 @@ void OnlineGUI::DoDraw()
 
   // Draw the histograms.
   for(UInt_t i=0; i<draw_count; i++) {
-    fConfig->GetDrawCommand(current_page,i, drawcommand);
+    fConfig.GetDrawCommand(current_page,i, drawcommand);
     fCanvas->cd(i+1);
 
     if( drawcommand.find("variable") != drawcommand.end() ){
@@ -392,7 +393,7 @@ void OnlineGUI::DoDraw()
   fCanvas->cd();
   fCanvas->Update();
 
-  if(fConfig->IsMonitor()) {
+  if(fConfig.IsMonitor()) {
     char buffer[9]; // HH:MM:SS
     time_t t = time(0);
     TString sLastUpdated("Plots updated at: ");
@@ -401,7 +402,7 @@ void OnlineGUI::DoDraw()
     fLastUpdated->SetText(sLastUpdated);
 
     struct stat result;
-    stat(fConfig->GetRootFile().Data(), &result);
+    stat(fConfig.GetRootFile().Data(), &result);
     time_t tf = result.st_mtime;
     strftime(buffer, 9, "%T", localtime(&tf));
 
@@ -464,11 +465,11 @@ void OnlineGUI::CheckPageButtons()
 
   if(current_page==0) {
     fPrev->SetState(kButtonDisabled);
-    if(fConfig->GetPageCount()!=1)
+    if(fConfig.GetPageCount()!=1)
       fNext->SetState(kButtonUp);
-  } else if(current_page==fConfig->GetPageCount()-1) {
+  } else if(current_page==fConfig.GetPageCount()-1) {
     fNext->SetState(kButtonDisabled);
-    if(fConfig->GetPageCount()!=1)
+    if(fConfig.GetPageCount()!=1)
       fPrev->SetState(kButtonUp);
   } else {
     fPrev->SetState(kButtonUp);
@@ -606,32 +607,32 @@ UInt_t OnlineGUI::GetTreeIndex(TString var) {
 
   //  This is for 2d draws... look for the first only
   if(var.Contains(":")) {
-    TString first_var = fConfig->SplitString(var,":")[0];
+    TString first_var = fConfig.SplitString(var,":")[0];
     var = first_var;
   }
   if(var.Contains("-")) {
-    TString first_var = fConfig->SplitString(var,"-")[0];
+    TString first_var = fConfig.SplitString(var,"-")[0];
     var = first_var;
   }
   if(var.Contains("/")) {
-    TString first_var = fConfig->SplitString(var,"/")[0];
+    TString first_var = fConfig.SplitString(var,"/")[0];
     var = first_var;
   }
   if(var.Contains("*")) {
-    TString first_var = fConfig->SplitString(var,"*")[0];
+    TString first_var = fConfig.SplitString(var,"*")[0];
     var = first_var;
   }
   if(var.Contains("+")) {
-    TString first_var = fConfig->SplitString(var,"+")[0];
+    TString first_var = fConfig.SplitString(var,"+")[0];
     var = first_var;
   }
   if(var.Contains("(")) {
-    TString first_var = fConfig->SplitString(var,"(")[0];
+    TString first_var = fConfig.SplitString(var,"(")[0];
     var = first_var;
   }
   //  This is for variables with multiple dimensions.
   if(var.Contains("[")) {
-    TString first_var = fConfig->SplitString(var,"[")[0];
+    TString first_var = fConfig.SplitString(var,"[")[0];
     var = first_var;
   }
 
@@ -733,14 +734,14 @@ void OnlineGUI::TimerUpdate() {
 
 #ifdef OLDTIMERUPDATE
   if(fVerbosity>=2)
-    cout<<"\t rtFile: "<<fRootFile<<"\t"<<fConfig->GetRootFile()<<endl;
+    cout<<"\t rtFile: "<<fRootFile<<"\t"<<fConfig.GetRootFile()<<endl;
   if(fRootFile){
     fRootFile->Close();
     fRootFile->Delete();
     delete fRootFile;
     fRootFile=0;
   }
-  fRootFile = new TFile(fConfig->GetRootFile(),"READ");
+  fRootFile = new TFile(fConfig.GetRootFile(),"READ");
   if(fRootFile->IsZombie()) {
     cout << "New run not yet available.  Waiting..." << endl;
     fRootFile->Close();
@@ -753,7 +754,7 @@ void OnlineGUI::TimerUpdate() {
   }
 
   // Update the runnumber
-  runNumber = fConfig -> GetRunNumber();
+  runNumber = fConfig.GetRunNumber();
   if(runNumber != 0) {
     TString rnBuff = "Run #";
     rnBuff += runNumber;
@@ -830,7 +831,7 @@ void OnlineGUI::CheckRootFile() {
   //   Reopen new root file,
   //   Reconnect the timer to TimerUpdate()
 
-  if(gSystem->AccessPathName(fConfig->GetRootFile())==0) {
+  if(gSystem->AccessPathName(fConfig.GetRootFile())==0) {
     cout << "Found the new run" << endl;
 #ifndef OLDTIMERUPDATE
     if(OpenRootFile()==0) {
@@ -852,7 +853,7 @@ void OnlineGUI::CheckRootFile() {
 Int_t OnlineGUI::OpenRootFile() {
 
 
-  fRootFile = new TFile(fConfig->GetRootFile(),"READ");
+  fRootFile = new TFile(fConfig.GetRootFile(),"READ");
   if(fRootFile->IsZombie() || (fRootFile->GetSize() == -1)
      || (fRootFile->ReadKeys()==0)) {
     cout << "New run not yet available.  Waiting..." << endl;
@@ -866,7 +867,7 @@ Int_t OnlineGUI::OpenRootFile() {
   }
 
   // Update the runnumber
-  runNumber = fConfig->GetRunNumber();
+  runNumber = fConfig.GetRunNumber();
   if(runNumber != 0) {
     TString rnBuff = "Run #";
     rnBuff += runNumber;
@@ -1050,10 +1051,10 @@ void OnlineGUI::TreeDraw(map<TString,TString> &command) {
   TString tempCut;
   if(command.size()>1) {
     tempCut = command["cut"];
-    vector <TString> cutIdents = fConfig->GetCutIdent();
+    vector <TString> cutIdents = fConfig.GetCutIdent();
     for(UInt_t i=0; i<cutIdents.size(); i++) {
       if(tempCut.Contains(cutIdents[i])) {
-	TString cut_found = (TString)fConfig->GetDefinedCut(cutIdents[i]);
+	TString cut_found = (TString)fConfig.GetDefinedCut(cutIdents[i]);
 	tempCut.ReplaceAll(cutIdents[i],cut_found);
       }
     }
@@ -1121,7 +1122,7 @@ void OnlineGUI::TreeDraw(map<TString,TString> &command) {
     }
   } else {
     BadDraw(var+" not found");
-    if (fConfig->IsMonitor()){
+    if (fConfig.IsMonitor()){
       // Maybe we missed it... look again.  I dont like the code
       // below... maybe I can come up with something better
       GetFileObjects();
@@ -1160,9 +1161,9 @@ void OnlineGUI::PrintPages() {
 
   // Open the RootFile
   //  unless we're watching a file.
-  fRootFile = new TFile(fConfig->GetRootFile(),"READ");
+  fRootFile = new TFile(fConfig.GetRootFile(),"READ");
   if(!fRootFile->IsOpen()) {
-    cout << "ERROR:  rootfile: " << fConfig->GetRootFile()
+    cout << "ERROR:  rootfile: " << fConfig.GetRootFile()
 	 << " does not exist"
 	 << endl;
     gApplication->Terminate();
@@ -1178,7 +1179,7 @@ void OnlineGUI::PrintPages() {
     }
 
   }
-  TString goldenfilename=fConfig->GetGoldenFile();
+  TString goldenfilename=fConfig.GetGoldenFile();
   if(!goldenfilename.IsNull()) {
     fGoldenFile = new TFile(goldenfilename,"READ");
     if(!fGoldenFile->IsOpen()) {
@@ -1198,16 +1199,16 @@ void OnlineGUI::PrintPages() {
   fCanvas = new TCanvas("fCanvas","trythis",1000,800);
   TLatex *lt = new TLatex();
 
-  TString plotsdir = fConfig->GetPlotsDir();
+  TString plotsdir = fConfig.GetPlotsDir();
   if(plotsdir.IsNull()) plotsdir=".";
 
   Bool_t pagePrint = kFALSE;
-  TString printFormat = fConfig->GetPlotFormat();
+  TString printFormat = fConfig.GetPlotFormat();
   if(printFormat.IsNull()) printFormat="pdf";
   if(printFormat!="pdf") pagePrint = kTRUE;
 
   TString filename = "summaryPlots";
-  runNumber = fConfig->GetRunNumber();
+  runNumber = fConfig.GetRunNumber();
   if(runNumber!=0) {
     filename += "_";
     filename += runNumber;
@@ -1218,7 +1219,7 @@ void OnlineGUI::PrintPages() {
   filename.Prepend(plotsdir+"/");
   if(pagePrint)
     filename += "_pageXXXX";
-  TString fConfName = fConfig->GetConfFileName();
+  TString fConfName = fConfig.GetConfFileName();
   TString fCfgNm = fConfName(fConfName.Last('/')+1,fConfName.Length());
   filename += "_" + fCfgNm(0,fCfgNm.Last('.'));
   filename += "."+printFormat;
@@ -1239,14 +1240,14 @@ void OnlineGUI::PrintPages() {
   gStyle->SetHistFillStyle(0);
   if(!pagePrint) fCanvas->Print(filename+"[");
   TString origFilename = filename;
-  for(UInt_t i=0; i<fConfig->GetPageCount(); i++) {
+  for(UInt_t i=0; i<fConfig.GetPageCount(); i++) {
     current_page=i;
     DoDraw();
     TString pagename = pagehead;
     pagename += " ";
     pagename += i;
     pagename += ": ";
-    pagename += fConfig->GetPageTitle(current_page);
+    pagename += fConfig.GetPageTitle(current_page);
     lt->SetTextSize(0.025);
     lt->DrawLatex(0.05,0.98,pagename);
     if(pagePrint) {
@@ -1285,7 +1286,6 @@ void OnlineGUI::MyCloseWindow()
   delete fMain;
   if(fGoldenFile!=NULL) delete fGoldenFile;
   if(fRootFile!=NULL) delete fRootFile;
-  delete fConfig;
 
   gApplication->Terminate();
 }
@@ -1318,5 +1318,4 @@ OnlineGUI::~OnlineGUI()
   delete fMain;
   if(fGoldenFile!=NULL) delete fGoldenFile;
   if(fRootFile!=NULL) delete fRootFile;
-  delete fConfig;
 }

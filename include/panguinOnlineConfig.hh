@@ -6,6 +6,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <string>
 #include <TString.h>
 #include "TCut.h"
 
@@ -32,14 +33,27 @@ class OnlineConfig {
   int hist2D_nBinsX,hist2D_nBinsY;
   TString fPlotFormat;
   int fRunNumber;
+  bool fPrintOnly;
+  bool fSaveImages;
 
   TString guiDirectory; //Initialize this from environment variables
 
   void ParseFile();
 
 public:
+  struct CmdLineOpts {
+    std::string cfgfile;
+    std::string cfgdir;
+    std::string plotfmt;
+    int run{0};
+    int verbosity{0};
+    bool printonly{false};
+    bool saveimages{false};
+  };
+
   OnlineConfig();
-  explicit OnlineConfig(TString);
+  explicit OnlineConfig(const TString&);
+  explicit OnlineConfig(const CmdLineOpts& opts);
   Bool_t ParseConfig();
   int GetRunNumber() const { return fRunNumber;}
 
@@ -52,6 +66,9 @@ public:
   TString GetGoldenFile() const { return goldenrootfilename; };
   TString GetGuiColor() const { return guicolor; };
   TString GetPlotsDir() const { return plotsdir; };
+  int GetVerbosity() const { return fVerbosity; }
+  int DoPrintOnly() const { return fPrintOnly; }
+  int DoSaveImages() const { return fSaveImages; }
   TCut GetDefinedCut(TString ident);
   std::vector <TString> GetCutIdent();
   // Page utilites
