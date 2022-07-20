@@ -69,15 +69,15 @@ class OnlineGUI {
   int fVerbosity;
 
 public:
-  explicit OnlineGUI(const OnlineConfig& config);
-  explicit OnlineGUI(OnlineConfig&& config);
-  void CreateGUI(const TGWindow *p, UInt_t w, UInt_t h);
+  explicit OnlineGUI( const OnlineConfig& config );
+  explicit OnlineGUI( OnlineConfig&& config );
+  void CreateGUI( const TGWindow* p, UInt_t w, UInt_t h );
   virtual ~OnlineGUI();
   void DoDraw();
   void SaveImage(TObject* o,std::map<TString,TString> &command);
   void DrawPrev();
   void DrawNext();
-  void DoListBox(Int_t id);
+  void DoListBox( Int_t id );
   void CheckPageButtons();
   // Specific Draw Methods
   Bool_t IsHistogram(TString);
@@ -101,7 +101,8 @@ public:
   void PrintPages();
   void MyCloseWindow();
   void CloseGUI();
-  void SetVerbosity(int ver){fVerbosity=ver;}
-  ClassDef(OnlineGUI,0)
+  void SetVerbosity( int ver ) { fVerbosity = ver; }
+  ClassDef(OnlineGUI, 0)
 };
+
 #endif //panguinOnline_h

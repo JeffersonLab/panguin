@@ -1,5 +1,5 @@
 #ifndef panguinOnlineConfig_h
-#define panguinOnlineConfig_h 1
+#define panguinOnlineConfig_h
 
 #include <utility>
 #include <fstream>

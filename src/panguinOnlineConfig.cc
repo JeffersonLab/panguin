@@ -143,7 +143,7 @@ Bool_t OnlineConfig::ParseConfig()
   // If statement for each high level command (cut, newpage, etc)
   for(UInt_t i=0;i<sConfFile.size();i++) {
     // "newpage" command
-    if(sConfFile[i][0] == "newpage") {
+    if( sConfFile[i][0] == "newpage" ) {
       // sConfFile[i] is first of pair
       for(j=i+1;j<sConfFile.size();j++) {
 	if(sConfFile[j][0] != "newpage") {
@@ -153,7 +153,7 @@ Bool_t OnlineConfig::ParseConfig()
       }
       pageInfo.push_back(make_pair(i,command_cnt));
       i += command_cnt;
-      command_cnt=0;
+      command_cnt = 0;
     }
     if(sConfFile[i][0] == "watchfile") {
       fMonitor = kTRUE;
@@ -164,37 +164,37 @@ Bool_t OnlineConfig::ParseConfig()
     if(sConfFile[i][0] == "2DbinsY") {
       hist2D_nBinsY = atoi(sConfFile[i][1]);
     }
-    if(sConfFile[i][0] == "definecut") {
-      if(sConfFile[i].size()>3) {
-	cerr << "cut command has too many arguments" << endl;
-	continue;
+    if( sConfFile[i][0] == "definecut" ) {
+      if( sConfFile[i].size() > 3 ) {
+        cerr << "cut command has too many arguments" << endl;
+        continue;
       }
       TCut tempCut(sConfFile[i][1],sConfFile[i][2]);
       cutList.push_back(tempCut);
     }
-    if(sConfFile[i][0] == "rootfile") {
-      if(sConfFile[i].size() != 2) {
-	cerr << "WARNING: rootfile command does not have the "
-	     << "correct number of arguments"
-	     << endl;
-	continue;
+    if( sConfFile[i][0] == "rootfile" ) {
+      if( sConfFile[i].size() != 2 ) {
+        cerr << "WARNING: rootfile command does not have the "
+             << "correct number of arguments"
+             << endl;
+        continue;
       }
-      if(!rootfilename.IsNull()) {
-	cerr << "WARNING: too many rootfile's defined. "
-	     << " Will only use the first one."
-	     << endl;
-	continue;
+      if( !rootfilename.empty() ) {
+        cerr << "WARNING: too many rootfile's defined. "
+             << " Will only use the first one."
+             << endl;
+        continue;
       }
       rootfilename = sConfFile[i][1];
       TString temp = sConfFile[i][1](sConfFile[i][1].Last('_')+1,sConfFile[i][1].Length());
       fRunNumber = atoi(temp(0,temp.Last('.')).Data());
     }
-    if(sConfFile[i][0] == "goldenrootfile") {
-      if(sConfFile[i].size() != 2) {
-	cerr << "WARNING: goldenfile command does not have the "
-	     << "correct number of arguments"
-	     << endl;
-	continue;
+    if( sConfFile[i][0] == "goldenrootfile" ) {
+      if( sConfFile[i].size() != 2 ) {
+        cerr << "WARNING: goldenfile command does not have the "
+             << "correct number of arguments"
+             << endl;
+        continue;
       }
       if(!goldenrootfilename.IsNull()) {
 	cerr << "WARNING: too many goldenrootfile's defined. "
@@ -204,12 +204,12 @@ Bool_t OnlineConfig::ParseConfig()
       }
       goldenrootfilename = sConfFile[i][1];
     }
-    if(sConfFile[i][0] == "protorootfile") {
-      if(sConfFile[i].size() != 2) {
-	cerr << "WARNING: protorootfile command does not have the "
-	     << "correct number of arguments"
-	     << endl;
-	continue;
+    if( sConfFile[i][0] == "protorootfile" ) {
+      if( sConfFile[i].size() != 2 ) {
+        cerr << "WARNING: protorootfile command does not have the "
+             << "correct number of arguments"
+             << endl;
+        continue;
       }
       if(!protorootfile.IsNull()) {
 	cerr << "WARNING: too many protorootfile's defined. "
@@ -219,12 +219,12 @@ Bool_t OnlineConfig::ParseConfig()
       }
       protorootfile = sConfFile[i][1];
     }
-    if(sConfFile[i][0] == "guicolor") {
-      if(sConfFile[i].size() != 2) {
-	cerr << "WARNING: guicolor command does not have the "
-	     << "correct number of arguments (needs 1)"
-	     << endl;
-	continue;
+    if( sConfFile[i][0] == "guicolor" ) {
+      if( sConfFile[i].size() != 2 ) {
+        cerr << "WARNING: guicolor command does not have the "
+             << "correct number of arguments (needs 1)"
+             << endl;
+        continue;
       }
       if(!guicolor.IsNull()) {
 	cerr << "WARNING: too many guicolor's defined. "
@@ -234,12 +234,12 @@ Bool_t OnlineConfig::ParseConfig()
       }
       guicolor = sConfFile[i][1];
     }
-    if(sConfFile[i][0] == "plotsdir") {
-      if(sConfFile[i].size() != 2) {
-	cerr << "WARNING: plotsdir command does not have the "
-	     << "correct number of arguments (needs 1)"
-	     << endl;
-	continue;
+    if( sConfFile[i][0] == "plotsdir" ) {
+      if( sConfFile[i].size() != 2 ) {
+        cerr << "WARNING: plotsdir command does not have the "
+             << "correct number of arguments (needs 1)"
+             << endl;
+        continue;
       }
       if(!plotsdir.IsNull()) {
 	cerr << "WARNING: too many plotdir's defined. "
@@ -249,31 +249,31 @@ Bool_t OnlineConfig::ParseConfig()
       }
       plotsdir = sConfFile[i][1];
     }
-    if(sConfFile[i][0] == "plotFormat") {
-      if(sConfFile[i].size() != 2) {
-	cerr << "WARNING: plotsdir command does not have the "
-	     << "correct number of arguments (needs 1)"
-	     << endl;
-	continue;
+    if( sConfFile[i][0] == "plotFormat" ) {
+      if( sConfFile[i].size() != 2 ) {
+        cerr << "WARNING: plotsdir command does not have the "
+             << "correct number of arguments (needs 1)"
+             << endl;
+        continue;
       }
       fPlotFormat = sConfFile[i][1];
     }
 
   }
 
-  if(fVerbosity>=3){
+  if( fVerbosity >= 3 ) {
     cout << "OnlineConfig::ParseConfig()\n";
     for(UInt_t i=0; i<GetPageCount(); i++) {
       cout << "Page " << i << " (" << GetPageTitle(i) << ")"
-	   << " will draw " << GetDrawCount(i)
-	   << " histograms." << endl;
+           << " will draw " << GetDrawCount(i)
+           << " histograms." << endl;
     }
   }
 
   cout << "Number of pages defined = " << GetPageCount() << endl;
   cout << "Number of cuts defined = " << cutList.size() << endl;
 
-  if (fMonitor)
+  if( fMonitor )
     cout << "Will periodically update plots" << endl;
   if(!goldenrootfilename.IsNull()) {
     cout << "Will compare chosen histrograms with the golden rootfile: "
@@ -304,7 +304,6 @@ vector <TString> OnlineConfig::GetCutIdent() {
   for(UInt_t i=0; i<cutList.size(); i++) {
     out.push_back(cutList[i].GetName());
   }
-
   return out;
 }
 
@@ -320,7 +319,7 @@ Bool_t OnlineConfig::IsLogy(UInt_t page) {
     printf("\nFound a logy!!!\n\n");
     return kTRUE;
   }
-  if(fVerbosity>=1){
+  if( fVerbosity >= 1 ) {
     cout << "OnlineConfig::IsLogy()     " << option << " " << page_index << " " << word_index
 	 << " " << sConfFile[page_index].size() << endl;
     for (Int_t i= 0; i < sConfFile[page_index].size(); i++) {
@@ -358,8 +357,8 @@ pair <UInt_t, UInt_t> OnlineConfig::GetPageDim(UInt_t page)
       return outDim;
     } else {
       cout << "Warning: newpage command has too many arguments. "
-	   << "Will automatically determine dimensions of page."
-	   << endl;
+           << "Will automatically determine dimensions of page."
+           << endl;
     }
   }
 
@@ -448,10 +447,10 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
   vector <UInt_t> command_vector = GetDrawIndex(page);
   UInt_t index = command_vector[nCommand];
 
-  if(fVerbosity > 1){
-    cout<<__PRETTY_FUNCTION__<<"\t"<<__LINE__<<endl;
+  if( fVerbosity > 1 ) {
+    cout << __PRETTY_FUNCTION__ << "\t" << __LINE__ << endl;
     cout << "OnlineConfig::GetDrawCommand(" << page << ","
-	 << nCommand << ")" << endl;
+         << nCommand << ")" << endl;
   }
 
   // for(UInt_t i=0; i<out_command.size(); i++) {
@@ -463,7 +462,7 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
     out_command["variable"] = sConfFile[index][0];
   }
 
-  if( out_command["variable"] == "macro" && sConfFile[index].size() > 1 ){
+  if( out_command["variable"] == "macro" && sConfFile[index].size() > 1 ) {
 
     TString macrocmd=""; //interpret the rest of the line as the macro to execute:
     for( int i=1; i<sConfFile[index].size(); i++){
@@ -474,13 +473,13 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
     return;
   }
 
-  if( out_command["variable"] == "loadmacro" && sConfFile[index].size() > 2 ){
+  if( out_command["variable"] == "loadmacro" && sConfFile[index].size() > 2 ) {
     out_command["library"] = sConfFile[index][1]; //shared library to load
     out_command["macro"] = sConfFile[index][2]; //macro command to execute
     return;
   }
 
-  if( out_command["variable"] == "loadlib" && sConfFile[index].size() > 1 ){
+  if( out_command["variable"] == "loadlib" && sConfFile[index].size() > 1 ) {
     out_command["library"] = sConfFile[index][1]; //shared library to load
   }
 
@@ -494,7 +493,7 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
       //   cout << "Error: Multiple types in line: " << index << endl;
       //   exit(1);
       // }
-      out_command["drawopt"] = sConfFile[index][i+1];
+      out_command["drawopt"] = sConfFile[index][i + 1];
       i++;
     } else if(sConfFile[index][i]=="-title" && i+1 < sConfFile[index].size() ) {
       // Put the entire title, (must be) surrounded by quotes, as one TString
@@ -546,8 +545,8 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
       //   cout << "Error: Multiple titles in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
       //   exit(1);
       // }
-    } else if(sConfFile[index][i]=="-tree" && i+1 < sConfFile[index].size() ) {
-      out_command["tree"] = sConfFile[index][i+1];
+    } else if( sConfFile[index][i] == "-tree" && i + 1 < sConfFile[index].size() ) {
+      out_command["tree"] = sConfFile[index][i + 1];
       i++;
       // if (out_command[4].IsNull()){
       //   out_command[4] = sConfFile[index][i+1];
@@ -556,7 +555,7 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
       //   cout << "Error: Multiple trees in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
       //   exit(1);
       // }
-    } else if(sConfFile[index][i]=="-grid") {
+    } else if( sConfFile[index][i] == "-grid" ) {
       out_command["grid"] = "grid";
       // if (out_command[5].IsNull()){ // grid option only works with TreeDraw
       //   out_command[5] = "grid";
@@ -564,15 +563,15 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
       //   cout << "Error: Multiple setup of grid in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
       //   exit(1);
       // }
-    } else if(sConfFile[index][i]=="-logx" ) {
+    } else if( sConfFile[index][i] == "-logx" ) {
       out_command["logx"] = "logx";
-    } else if(sConfFile[index][i]=="-logy" ) {
+    } else if( sConfFile[index][i] == "-logy" ) {
       out_command["logy"] = "logy";
-    } else if( sConfFile[index][i]=="-logz" ) {
+    } else if( sConfFile[index][i] == "-logz" ) {
       out_command["logz"] = "logz";
-    } else if( sConfFile[index][i]=="-nostat" ) {
+    } else if( sConfFile[index][i] == "-nostat" ) {
       out_command["nostat"] = "nostat";
-    } else if( sConfFile[index][i]=="-noshowgolden" ){
+    } else if( sConfFile[index][i] == "-noshowgolden" ) {
       out_command["noshowgolden"] = "noshowgolden";
     } else {  // every thing else is regarded as cut
       out_command["cut"] = sConfFile[index][i];
@@ -585,7 +584,7 @@ void OnlineConfig::GetDrawCommand(UInt_t page, UInt_t nCommand, std::map<TString
     }
   }
 
-  if(fVerbosity>=1){
+  if( fVerbosity >= 1 ) {
     cout << sConfFile[index].size() << ": ";
     for(UInt_t i=0; i<sConfFile[index].size(); i++) {
       cout << sConfFile[index][i] << " ";
@@ -651,8 +650,8 @@ void OnlineConfig::OverrideRootFile(UInt_t runnumber)
     fRunNumber = runnumber;
     cout << "Protorootfile set, use it: " << rootfilename.Data() << endl;
   } else {
-    string fnmRoot="/adaq1/data1/sbs";
-    if(getenv("ROOTFILES"))
+    string fnmRoot = "/adaq1/data1/sbs";
+    if( getenv("ROOTFILES") )
       fnmRoot = getenv("ROOTFILES");
     else
       cout<<"ROOTFILES env variable was not found going with default: "<< fnmRoot<<endl;
@@ -697,11 +696,11 @@ void OnlineConfig::OverrideRootFile(UInt_t runnumber)
       closedir (dirSearch);
     }
 
-    if(found){
-      cout<<"\t found file "<< rootfilename<<endl;
+    if( found ) {
+      cout << "\t found file " << rootfilename << endl;
       fRunNumber = runnumber;
-    }else{
-      cout<<"double check your configurations and files. Quitting"<<endl;
+    } else {
+      cout << "double check your configurations and files. Quitting" << endl;
       exit(1);
     }
   }

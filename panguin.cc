@@ -13,7 +13,8 @@ using namespace std;
 clock_t tStart;
 void online( const OnlineConfig::CmdLineOpts& opts );
 
-int main(int argc, char **argv){
+int main( int argc, char** argv )
+{
   tStart = clock();
   string cfgfile{"default.cfg"};
   string cfgdir;
@@ -27,8 +28,8 @@ int main(int argc, char **argv){
   macropath += ":./macros";
   gROOT->SetMacroPath(macropath.Data());
 
-  cout<<"Starting processing arg. Time passed: "
-      <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
+  cout << "Starting processing arg. Time passed: "
+       << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
 
   CLI::App cli("panguin: configurable ROOT data visualization tool");
 
@@ -63,11 +64,11 @@ int main(int argc, char **argv){
   cout << "Run number: " << run << endl;
   cout << "Config dir: " << cfgdir << endl;
 
-  if( !gSystem->AccessPathName("./rootlogon.C") ){
+  if( !gSystem->AccessPathName("./rootlogon.C") ) {
     gROOT->ProcessLine(".x rootlogon.C");
   }
 
-  if( !gSystem->AccessPathName("~/rootlogon.C") ){
+  if( !gSystem->AccessPathName("~/rootlogon.C") ) {
     gROOT->ProcessLine(".x ~/rootlogon.C");
   }
 
@@ -76,14 +77,15 @@ int main(int argc, char **argv){
     cfgfile, cfgdir, plotfmt, run, verbosity, printonly, saveImages});
   theApp.Run();
 
-  cout<<"Done. Time passed: "
-      <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
+  cout << "Done. Time passed: "
+       << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
 
   return 0;
 }
 
 
-void online( const OnlineConfig::CmdLineOpts& opts ) {
+void online( const OnlineConfig::CmdLineOpts& opts )
+{
 
   if( opts.printonly ) {
     if( !gROOT->IsBatch() ) {
@@ -91,8 +93,8 @@ void online( const OnlineConfig::CmdLineOpts& opts ) {
     }
   }
 
-  cout<<"Starting processing cfg. Time passed: "
-      <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
+  cout << "Starting processing cfg. Time passed: "
+       << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
 
   OnlineConfig fconfig(opts);
   if( !fconfig.ParseConfig() )
@@ -101,12 +103,12 @@ void online( const OnlineConfig::CmdLineOpts& opts ) {
   if( opts.run != 0 )
     fconfig.OverrideRootFile(opts.run);
 
-  cout<<"Finished processing cfg. Init OnlineGUI. Time passed: "
-      <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
+  cout << "Finished processing cfg. Init OnlineGUI. Time passed: "
+       << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
 
   new OnlineGUI(std::move(fconfig));
 
-  cout<<"Finished init OnlineGUI. Time passed: "
-      <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
+  cout << "Finished init OnlineGUI. Time passed: "
+       << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
 
 }
