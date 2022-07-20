@@ -50,24 +50,36 @@ if(DEFINED ENV{ANALYZER})
   endif()
 endif()
 
+# CLI11 command line parser
+file(DOWNLOAD
+  "https://github.com/CLIUtils/CLI11/releases/download/v2.2.0/CLI11.hpp"
+  "CLI11.hpp"
+  EXPECTED_HASH
+    SHA256=e0bd8d113ed526ca9a86fafa8f7e0c51dc9d20821c4d0fd3a8697f21c049722c
+  STATUS _ret
+)
+list(GET _ret 0 _retcode)
+if(NOT _ret EQUAL 0)
+  list(GET _ret 1 _errtxt)
+  message(FATAL_ERROR "Failed to download CLI11.hpp: ${_errtxt}")
+endif()
+include_directories(${CMAKE_BINARY_DIR})
+
 # ROOT dictionary needed for interactive ROOT graphics support
 build_root_dictionary(
     panguin             # dictionary base name -> panguinDict.cxx
-    ${PROJECT_SOURCE_DIR}/include/panguinOnlineConfig.hh
-    ${PROJECT_SOURCE_DIR}/include/panguinOnline.hh
+    "${PROJECT_SOURCE_DIR}/include/panguinOnlineConfig.hh"
+    "${PROJECT_SOURCE_DIR}/include/panguinOnline.hh"
     TARGETS panguin
     LINKDEF "${PROJECT_SOURCE_DIR}/include/panguinOnlineLinkDef.h"  # ROOT linkDef file
     OPTIONS -p
 )
 
-
-include_directories(${PROJECT_SOURCE_DIR}/include)
-
-
 #----------------------------------------------------------------------------
 # Locate sources and headers for this project
 # NB: headers are included so they will show up in IDEs
 #
+include_directories(${PROJECT_SOURCE_DIR}/include)
 file(GLOB sources ${PROJECT_SOURCE_DIR}/src/*.cc)
 file(GLOB headers ${PROJECT_SOURCE_DIR}/include/*.hh)
 
@@ -78,7 +90,7 @@ add_library(panguin-lib SHARED ${sources} ${headers} panguinDict.cxx)
 set_target_properties(panguin-lib PROPERTIES OUTPUT_NAME panguin)
 target_link_libraries(panguin-lib PUBLIC ${PODD_LIBS} ROOT::Libraries)
 
-add_executable(panguin-bin panguin.cc)
+add_executable(panguin-bin panguin.cc "${CMAKE_BINARY_DIR}/CLI11.hpp")
 set_target_properties(panguin-bin PROPERTIES OUTPUT_NAME panguin)
 target_link_libraries(panguin-bin panguin-lib)
 

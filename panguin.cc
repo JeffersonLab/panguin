@@ -1,10 +1,12 @@
 #include "panguinOnline.hh"
+#include "CLI11.hpp"
 #include <TApplication.h>
 #include <TString.h>
 #include <TROOT.h>
 #include <TSystem.h>
 #include <iostream>
 #include <ctime>
+#include <string>
 
 using namespace std;
 
@@ -14,55 +16,53 @@ void online(TString type="standard",UInt_t run=0,Bool_t printonly=kFALSE, int ve
 
 int main(int argc, char **argv){
   tStart = clock();
- 
-  TString type="default";
-  UInt_t run=0;
-  Bool_t printonly=kFALSE;
-  Bool_t saveImages=kFALSE;
-  Bool_t showedUsage=kFALSE;
-  int verbosity(0);
+  string cfgfile{"default.cfg"};
+  string cfgdir;
+  string plotfmt{"pdf"};
+  UInt_t run{0};
+  bool printonly{false};
+  bool saveImages{false};
+  int verbosity{0};
 
   TString macropath = gROOT->GetMacroPath();
   macropath += ":./macros";
   gROOT->SetMacroPath(macropath.Data());
 
-  TApplication theApp("App",&argc,argv,NULL,-1);
-
   cout<<"Starting processing arg. Time passed: "
       <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
 
-  for(Int_t i=1;i<theApp.Argc();i++) {
-    TString sArg = theApp.Argv(i);
-    if(sArg=="-f") {
-      type = theApp.Argv(++i);
-      cout << " File specifier: "
-	   <<  type << endl;
-    } else if (sArg=="-r") {
-      run = atoi(theApp.Argv(++i));
-      cout << " Runnumber: "
-	   << run << endl;
-    } else if (sArg=="-v") {
-      verbosity = atoi(theApp.Argv(++i));
-    } else if (sArg=="-P") {
-      printonly = kTRUE;
-      cout <<  " PrintOnly" << endl;
-    } else if (sArg=="-I") {
-      saveImages = kTRUE;
-      cout <<  " save Images" << endl;
-    } else if (sArg=="-h") {
-      if(!showedUsage) Usage();
-      showedUsage=kTRUE;
-      return 0;
-    } else {
-      cerr << "\"" << sArg << "\"" << " not recognized.  Ignored." << endl;
-      if(!showedUsage) Usage();
-      showedUsage=kTRUE;
-    }
+  CLI::App cli("panguin: configurable ROOT data visualization tool");
+
+  cli.add_option("-f,--file", cfgfile, "Job configuration file")
+    ->capture_default_str()->type_name("<file name>");
+  cli.add_option("-r,--run", run, "Run number")
+    ->type_name("<run number>");
+  cli.add_option("-v,--verbosity", verbosity, "Set verbosity level (>=0)")
+    ->type_name("<level>");
+  cli.add_option("-C,--config-dir", cfgdir, "Configuration directory")
+    ->type_name("<dir>");
+  cli.add_option("-F,--plot-format", plotfmt, "Plot format (pdf, png, jpg ...)")
+    ->capture_default_str()->type_name("<fmt>");
+  cli.add_flag("-P,,-b,--batch", printonly, "No GUI. Write plots to file");
+  cli.add_flag("-I,--images", saveImages, "Save plots as png images");
+  cli.set_version_flag("-V,--version", "1.0");
+
+  CLI11_PARSE(cli, argc, argv);
+
+  if( verbosity > 1 ) {
+    cout << cli.config_to_str(true, false);
   }
+
+  if (verbosity < 0)
+    verbosity = 0;
   cout << "Verbosity level set to "<<verbosity<<endl;
 
   cout<<"Finished processing arg. Time passed: "
       <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
+
+  cout << "Job config file: " << cfgfile << endl;
+  cout << "Run number: " << run << endl;
+  cout << "Config dir: " << cfgdir << endl;
 
   if( !gSystem->AccessPathName("./rootlogon.C") ){
     gROOT->ProcessLine(".x rootlogon.C");
@@ -71,8 +71,9 @@ int main(int argc, char **argv){
   if( !gSystem->AccessPathName("~/rootlogon.C") ){
     gROOT->ProcessLine(".x ~/rootlogon.C");
   }
-  
-  online(type,run,printonly,verbosity,saveImages);
+
+  TApplication theApp("panguin2", &argc, argv, nullptr, -1);
+  online(cfgfile, run, printonly, verbosity, saveImages);
   theApp.Run();
 
   cout<<"Done. Time passed: "
@@ -120,4 +121,3 @@ void Usage(){
   cerr << "  -P : Only Print Summary Plots" << endl;
   cerr << endl;
 }
-
