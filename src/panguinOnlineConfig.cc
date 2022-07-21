@@ -2,7 +2,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
-#include <list>
+#include <sstream>
 #include <utility>
 #include <dirent.h>
 #include <cmath>
@@ -23,8 +23,7 @@ static string DirnameStr( string path )
 
 // Constructor.  Without an argument, use default config
 OnlineConfig::OnlineConfig()
-  : OnlineConfig("default.cfg")
-{}
+  : OnlineConfig("default.cfg") {}
 
 // Constructor.  Takes the config file name as the only argument.
 //  Loads up the configuration file, and stores its contents for access.
@@ -114,8 +113,8 @@ int OnlineConfig::LoadFile( std::ifstream& infile )
     cout << "OnlineConfig::LoadFile()\n";
     for( uint_t ii = 0; ii < sConfFile.size(); ii++ ) {
       cout << "Line " << ii << endl << "  ";
-      for(UInt_t jj=0; jj<sConfFile[ii].size(); jj++)
-	cout << sConfFile[ii][jj] << " ";
+      for( const auto& field: sConfFile[ii] )
+        cout << field << " ";
       cout << endl;
     }
   }
@@ -161,13 +160,13 @@ bool OnlineConfig::ParseConfig()
     // "newpage" command
     if( sConfFile[i][0] == "newpage" ) {
       // sConfFile[i] is first of pair
-      for(j=i+1;j<sConfFile.size();j++) {
-	if(sConfFile[j][0] != "newpage") {
-	  // Count how many commands within the page
-	  command_cnt++;
-	} else break;
+      for( auto j = i + 1; j < sConfFile.size(); j++ ) {
+        if( sConfFile[j][0] != "newpage" ) {
+          // Count how many commands within the page
+          command_cnt++;
+        } else break;
       }
-      pageInfo.push_back(make_pair(i,command_cnt));
+      pageInfo.emplace_back(i, command_cnt);
       i += command_cnt;
       command_cnt = 0;
     }
@@ -318,8 +317,8 @@ const string& OnlineConfig::GetDefinedCut( const string& ident )
   // Returns a vector of the cut identifiers, specified in config
   vector<string> out;
 
-  for(UInt_t i=0; i<cutList.size(); i++) {
-    out.push_back(cutList[i].GetName());
+  for( const auto& cut: cutList ) {
+    out.push_back(cut.first);
   }
   return out;
 }
@@ -338,9 +337,9 @@ bool OnlineConfig::IsLogy( uint_t page )
   }
   if( fVerbosity >= 1 ) {
     cout << "OnlineConfig::IsLogy()     " << option << " " << page_index << " " << word_index
-	 << " " << sConfFile[page_index].size() << endl;
-    for (Int_t i= 0; i < sConfFile[page_index].size(); i++) {
-      cout << sConfFile[page_index][i] << " ";
+         << " " << sConfFile[page_index].size() << endl;
+    for( const auto& opts: sConfFile[page_index] ) {
+      cout << opts << " ";
     }
   }
   return false;
@@ -550,7 +549,7 @@ void OnlineConfig::GetDrawCommand( uint_t page, uint_t nCommand, std::map<string
       if( i == sConfFile[index].size() && sConfFile[index][i - 1].back() != '\"' ) {
         // unmatched double quote
         cout << "Error, unmatched double quote, please check you config file. Quitting" << endl;
-        exit(1);
+        exit(1);  // FIXME: exit?
       }
 
       out_command["title"] = title;
@@ -602,17 +601,16 @@ void OnlineConfig::GetDrawCommand( uint_t page, uint_t nCommand, std::map<string
 
   if( fVerbosity >= 1 ) {
     cout << sConfFile[index].size() << ": ";
-    for(UInt_t i=0; i<sConfFile[index].size(); i++) {
-      cout << sConfFile[index][i] << " ";
+    for( const auto& field: sConfFile[index] ) {
+      cout << field << " ";
     }
     cout << endl;
-    for(UInt_t i=0; i<out_command.size(); i++) {
-      cout << i << ": " << out_command[i] << endl;
+    int i = 0;
+    for( const auto& cmd: out_command ) {
+      cout << i++ << ": [" << std::quoted(cmd.first)
+           << ", " << std::quoted(cmd.second) << "]" << endl;
     }
   }
-
-  //return out_command;
-  return;
 }
 
 void OnlineConfig::OverrideRootFile( int runnumber )

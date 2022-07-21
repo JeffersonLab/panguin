@@ -8,7 +8,6 @@
 #include <fstream>
 #include <iostream>
 #include <list>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <ctime>
 #include <TMath.h>
@@ -22,14 +21,13 @@
 #include <TKey.h>
 #include <TSystem.h>
 #include <TLatex.h>
-#include <TText.h>
 #include "TPaveText.h"
 #include <TApplication.h>
 #include "TEnv.h"
 #include "TRegexp.h"
-#include "TGraph.h"
 #include "TGaxis.h"
 #include <map>
+#include <list>
 #include <utility>
 
 #define OLDTIMERUPDATE
@@ -45,14 +43,15 @@ using namespace std;
 //
 //
 
-OnlineGUI::OnlineGUI(OnlineConfig&& config)
-  : fConfig(std::move(config))
-  , runNumber(0)
-  , timer(nullptr)
-  , timerNow(nullptr)
-  , fFileAlive(kFALSE)
-  , fVerbosity(fConfig.GetVerbosity())
-  , fSaveImages(fConfig.DoSaveImages())
+OnlineGUI::OnlineGUI( OnlineConfig&& config )
+  : fConfig{std::move(config)}
+  , runNumber{0}
+  , current_page{0}
+  , doGolden{false}
+  , fUpdate{false}
+  , fFileAlive{false}
+  , fVerbosity{fConfig.GetVerbosity()}
+  , fSaveImages{fConfig.DoSaveImages()}
 {
   // Constructor. Make the GUI.
   int bin2Dx(0), bin2Dy(0);
@@ -99,9 +98,9 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
     GetFileObjects();
     GetRootTree();
     GetTreeVars();
-    for(UInt_t i=0; i<fRootTree.size(); i++) {
-      if(fRootTree[i]==0) {
-	fRootTree.erase(fRootTree.begin() + i);
+    for( UInt_t i = 0; i < fRootTree.size(); i++ ) {
+      if( fRootTree[i] == nullptr ) {
+        fRootTree.erase(fRootTree.begin() + i);
       }
     }
 
@@ -114,13 +113,13 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
            << " does not exist.  Oh well, no comparison plots."
            << endl;
       doGolden = kFALSE;
-      fGoldenFile=NULL;
+      fGoldenFile = nullptr;
     } else {
       doGolden = kTRUE;
     }
   } else {
-    doGolden=kFALSE;
-    fGoldenFile=NULL;
+    doGolden = kFALSE;
+    fGoldenFile = nullptr;
   }
 
   // Create the main frame
@@ -292,16 +291,16 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
 
   if( fConfig.IsMonitor() ) {
     timerNow = new TTimer();
-    timerNow->Connect(timerNow, "Timeout()", "OnlineGUI", this, "UpdateCurrentTime()");
+    TTimer::Connect(timerNow, "Timeout()", "OnlineGUI", this, "UpdateCurrentTime()");
     timerNow->Start(1000);  // update every second
   }
 
   if( fConfig.IsMonitor() ) {
     timer = new TTimer();
-    if(fFileAlive) {
-      timer->Connect(timer,"Timeout()","OnlineGUI",this,"TimerUpdate()");
+    if( fFileAlive ) {
+      TTimer::Connect(timer, "Timeout()", "OnlineGUI", this, "TimerUpdate()");
     } else {
-      timer->Connect(timer,"Timeout()","OnlineGUI",this,"CheckRootFile()");
+      TTimer::Connect(timer, "Timeout()", "OnlineGUI", this, "CheckRootFile()");
     }
     timer->Start(UPDATETIME);
   }
@@ -353,19 +352,18 @@ void OnlineGUI::DoDraw()
     gStyle->SetLabelSize(0.08, "Y");
   }
   //   Int_t dim = Int_t(round(sqrt(double(draw_count))));
-  pair<UInt_t, UInt_t> dim = fConfig.GetPageDim(current_page);
+  Int_t nx, ny;
+  std::tie(nx, ny) = fConfig.GetPageDim(current_page);
 
   if( fVerbosity >= 1 )
-    cout << "Dimensions: " << dim.first << "X"
-         << dim.second << endl;
+    cout << "Dimensions: " << nx << "X" << ny << endl;
 
   // Create a nice clean canvas.
   fCanvas->Clear();
-  fCanvas->Divide(dim.first, dim.second);
+  fCanvas->Divide(nx, ny);
 
-  //  vector <TString> drawcommand(5);
-  map<TString,TString> drawcommand;
-  //options are "variable", "cut", "drawopt", "title", "treename", "grid", "nostat"
+  map<string, string> drawcommand;
+  //keys are "variable", "cut", "drawopt", "title", "treename", "grid", "nostat"
 
   // Draw the histograms.
   for( UInt_t i = 0; i < draw_count; i++ ) {
@@ -392,7 +390,7 @@ void OnlineGUI::DoDraw()
 
   if( fConfig.IsMonitor() ) {
     char buffer[9]; // HH:MM:SS
-    time_t t = time(0);
+    time_t t = time(nullptr);
     TString sLastUpdated("Plots updated at: ");
     strftime(buffer, 9, "%T", localtime(&t));
     sLastUpdated += buffer;
@@ -474,18 +472,18 @@ void OnlineGUI::CheckPageButtons()
   }
 }
 
-Bool_t OnlineGUI::IsHistogram(TString objectname)
+Bool_t OnlineGUI::IsHistogram( const TString& objectname )
 {
   // Utility to determine if the objectname provided is a histogram
 
-  for(UInt_t i=0; i<fileObjects.size(); i++) {
-    if (fileObjects[i].first.Contains(objectname)) {
-      if(fVerbosity>=2)
-	cout << fileObjects[i].first << "      "
-	     << fileObjects[i].second << endl;
+  for( const auto& fileObject: fileObjects ) {
+    if( fileObject.first.Contains(objectname) ) {
+      if( fVerbosity >= 2 )
+        cout << fileObject.first << "      "
+             << fileObject.second << endl;
 
-      if(fileObjects[i].second.Contains("TH"))
-	return kTRUE;
+      if( fileObject.second.Contains("TH") )
+        return kTRUE;
     }
   }
   return kFALSE;
@@ -493,7 +491,7 @@ Bool_t OnlineGUI::IsHistogram(TString objectname)
 
 void OnlineGUI::GetFileObjects()
 {
-  // Utility to find all of the objects within a File (TTree, TH1F, etc).
+  // Utility to find all objects within a File (TTree, TH1F, etc).
   //  The pair stored in the vector is <ObjName, ObjType>
   //  If there's no good keys.. do nothing.
   if( fVerbosity >= 1 )
@@ -508,7 +506,7 @@ void OnlineGUI::GetFileObjects()
   }
   fileObjects.clear();
   TIter next(fRootFile->GetListOfKeys());
-  TKey *key = new TKey();
+  TKey* key;
 
   // Do the search
   while( (key = (TKey*) next()) ) {
@@ -521,27 +519,26 @@ void OnlineGUI::GetFileObjects()
     if( fVerbosity >= 1 )
       cout << objname << " " << objtype << endl;
 
-    fileObjects.push_back(make_pair(objname,objtype));
+    fileObjects.emplace_back(objname, objtype);
   }
   fUpdate = kTRUE;
-  delete key;
 }
 
 void OnlineGUI::GetTreeVars()
 {
-  // Utility to find all of the variables (leaf's/branches) within a
+  // Utility to find all variables (leaves/branches) within a
   // Specified TTree and put them within the treeVars vector.
   treeVars.clear();
   TObjArray* branchList;
   vector<TString> currentTree;
 
-  for(UInt_t i=0; i<fRootTree.size(); i++) {
+  for( const auto& tree: fRootTree ) {
     currentTree.clear();
-    branchList = fRootTree[i]->GetListOfBranches();
+    branchList = tree->GetListOfBranches();
     TIter next(branchList);
     TBranch* brc;
 
-    while((brc=(TBranch*)next())!=0) {
+    while( (brc = (TBranch*) next()) ) {
       TString found = brc->GetName();
       // Not sure if the line below is so smart...
       currentTree.push_back(found);
@@ -552,8 +549,8 @@ void OnlineGUI::GetTreeVars()
   if( fVerbosity >= 5 ) {
     for( UInt_t iTree = 0; iTree < treeVars.size(); iTree++ ) {
       cout << "In Tree " << iTree << ": " << endl;
-      for(UInt_t i=0; i<treeVars[iTree].size(); i++) {
-	cout << treeVars[iTree][i] << endl;
+      for( const auto& var: treeVars[iTree] ) {
+        cout << var << endl;
       }
     }
   }
@@ -566,15 +563,15 @@ void OnlineGUI::GetRootTree()
   // Fills the fRootTree vector
   fRootTree.clear();
 
-  list <TString> found;
-  for(UInt_t i=0; i<fileObjects.size(); i++) {
+  std::list<TString> found;
+  for( const auto& fileObject: fileObjects ) {
 
-    if(fVerbosity>=2)
-      cout << "Object = " << fileObjects[i].second <<
-	"     Name = " << fileObjects[i].first << endl;
+    if( fVerbosity >= 2 )
+      cout << "Object = " << fileObject.second <<
+           "     Name = " << fileObject.first << endl;
 
-    if(fileObjects[i].second.Contains("TTree"))
-      found.push_back(fileObjects[i].first);
+    if( fileObject.second.Contains("TTree") )
+      found.push_back(fileObject.first);
   }
 
   // Remove duplicates, then insert into fRootTree
@@ -623,7 +620,8 @@ UInt_t OnlineGUI::GetTreeIndex( TString var )
   return fRootTree.size() + 1;
 }
 
-UInt_t OnlineGUI::GetTreeIndexFromName(TString name) {
+UInt_t OnlineGUI::GetTreeIndexFromName( const TString& name )
+{
   // Called by TreeDraw().  Tries to find the Tree index provided the
   //  name.  If it doesn't match up, return a number that's one larger
   //  than the number of found trees.
@@ -637,52 +635,58 @@ UInt_t OnlineGUI::GetTreeIndexFromName(TString name) {
   return fRootTree.size() + 1;
 }
 
-void OnlineGUI::MacroDraw(std::map<TString,TString> &command) {
+void OnlineGUI::MacroDraw( const map<string, string>& command )
+{
   // Called by DoDraw(), this will make a call to the defined macro, and
-  //  plot it in it's own pad.  One plot per macro, please.
+  //  plot it in its own pad.  One plot per macro, please.
 
-  if(command.find("macro") == command.end() ){
+  auto imac = command.find("macro");
+  if( imac == command.end() ) {
     cout << "macro command doesn't contain a macro to execute" << endl;
     return;
   }
 
-  if(doGolden) fRootFile->cd();
-  gROOT->Macro(command["macro"]);
+  if( doGolden ) fRootFile->cd();
+  gROOT->Macro(imac->second.c_str());
 
 
 }
 
-void OnlineGUI::LoadDraw(std::map<TString,TString> &command) {
+void OnlineGUI::LoadDraw( const map<string, string>& command )
+{
   // Called by DoDraw(), this will load a shared object library
   // and then make a call to the defined macro, and
-  // plot it in it's own pad.  One plot per macro, please.
+  // plot it in its own pad.  One plot per macro, please.
 
   //  TString slib("library");
   //TString smacro("macro");
 
-  if(command.find("library") == command.end() ||
-     command.find("macro") == command.end() ) {
+  auto ilib = command.find("library");
+  auto imac = command.find("macro");
+  if( ilib == command.end() || imac == command.end() ) {
     cout << "load command is missing either a shared library or macro command or both" << endl;
     return;
   }
 
-  if(doGolden) fRootFile->cd();
-  gSystem->Load(command["library"]);
-  gROOT->Macro(command["macro"]);
+  if( doGolden ) fRootFile->cd();
+  gSystem->Load(ilib->second.c_str());
+  gROOT->Macro(imac->second.c_str());
 
 
 }
 
-void OnlineGUI::LoadLib(std::map<TString,TString> &command) {
+void OnlineGUI::LoadLib( const map<string, string>& command )
+{
   // Called by DoDraw(), this will load a shared object library
 
-  if(command.find("library") == command.end() ) {
+  auto ilib = command.find("library");
+  if( ilib == command.end() ) {
     cout << "load command doesn't contain a shared object library path" << endl;
     return;
   }
 
-  if(doGolden) fRootFile->cd();
-  gSystem->Load(command["library"]);
+  if( doGolden ) fRootFile->cd();
+  gSystem->Load(ilib->second.c_str());
 
 
 }
@@ -711,17 +715,17 @@ void OnlineGUI::TimerUpdate()
     fRootFile->Close();
     fRootFile->Delete();
     delete fRootFile;
-    fRootFile=0;
+    fRootFile = nullptr;
   }
   fRootFile = new TFile(fConfig.GetRootFile(), "READ");
   if( fRootFile->IsZombie() ) {
     cout << "New run not yet available.  Waiting..." << endl;
     fRootFile->Close();
     delete fRootFile;
-    fRootFile = 0;
+    fRootFile = nullptr;
     timer->Reset();
     timer->Disconnect();
-    timer->Connect(timer,"Timeout()","OnlineGUI",this,"CheckRootFile()");
+    TTimer::Connect(timer, "Timeout()", "OnlineGUI", this, "CheckRootFile()");
     return;
   }
 
@@ -734,9 +738,9 @@ void OnlineGUI::TimerUpdate()
     hframe->Layout();
   }
 
-  // Open the Root Trees.  Give a warning if it's not there..
+  // Open the Root Trees.  Give a warning if it's not there.
   GetFileObjects();
-  if (fUpdate) { // Only do this stuff if their are valid keys
+  if( fUpdate ) { // Only do this stuff if there are valid keys
     GetRootTree();
     GetTreeVars();
     for( UInt_t i = 0; i < fRootTree.size(); i++ ) {
@@ -774,7 +778,7 @@ void OnlineGUI::TimerUpdate()
 void OnlineGUI::UpdateCurrentTime()
 {
   char buffer[9];
-  time_t t = time(0);
+  time_t t = time(nullptr);
   strftime(buffer, 9, "%T", localtime(&t));
   TString sNow("Current time: ");
   sNow += buffer;
@@ -782,7 +786,8 @@ void OnlineGUI::UpdateCurrentTime()
   timerNow->Reset();
 }
 
-void OnlineGUI::BadDraw(TString errMessage) {
+void OnlineGUI::BadDraw( const TString& errMessage )
+{
   // Routine to display (in Pad) why a particular draw method has
   // failed.
   auto* pt = new TPaveText(0.1, 0.1, 0.9, 0.9, "brNDC");
@@ -809,9 +814,9 @@ void OnlineGUI::CheckRootFile()
 #ifndef OLDTIMERUPDATE
     if(OpenRootFile()==0) {
 #endif
-      timer->Reset();
-      timer->Disconnect();
-      timer->Connect(timer,"Timeout()","OnlineGUI",this,"TimerUpdate()");
+    timer->Reset();
+    timer->Disconnect();
+    TTimer::Connect(timer, "Timeout()", "OnlineGUI", this, "TimerUpdate()");
 #ifndef OLDTIMERUPDATE
     }
 #endif
@@ -832,10 +837,10 @@ Int_t OnlineGUI::OpenRootFile()
     cout << "New run not yet available.  Waiting..." << endl;
     fRootFile->Close();
     delete fRootFile;
-    fRootFile = 0;
+    fRootFile = nullptr;
     timer->Reset();
     timer->Disconnect();
-    timer->Connect(timer,"Timeout()","OnlineGUI",this,"CheckRootFile()");
+    TTimer::Connect(timer, "Timeout()", "OnlineGUI", this, "CheckRootFile()");
     return -1;
   }
 
@@ -850,7 +855,7 @@ Int_t OnlineGUI::OpenRootFile()
 
   // Open the Root Trees.  Give a warning if it's not there..
   GetFileObjects();
-  if (fUpdate) { // Only do this stuff if their are valid keys
+  if( fUpdate ) { // Only do this stuff if there are valid keys
     GetRootTree();
     GetTreeVars();
     for( UInt_t i = 0; i < fRootTree.size(); i++ ) {
@@ -865,18 +870,23 @@ Int_t OnlineGUI::OpenRootFile()
   return 0;
 
 }
-void OnlineGUI::SaveImage(TObject* o,std::map<TString,TString> &command)
+
+void OnlineGUI::SaveImage( TObject* o, const map<string, string>& command ) const
 {
-  if(this->fSaveImages)
-      {
-        cout<<"saving image "<< command["variable"] <<endl;
-        TCanvas *c = new TCanvas("c","c",gPad->GetWw(),gPad->GetWh());
-        o->Draw(command["drawopt"]);
-        c->Print("hydra_"+command["variable"]+".png");
-        delete c;
-      }
+  auto ivar = command.find("variable");
+  if( fSaveImages && ivar != command.end() ) {
+    cout << "saving image " << ivar->second << endl;
+    auto* c = new TCanvas("c", "c", gPad->GetWw(), gPad->GetWh());
+    auto iopt = command.find("drawopt");
+    const char* opt = iopt != command.end() ? iopt->second.c_str() : "";
+    o->Draw(opt);
+    c->Print(("hydra_" + ivar->second + ".png").c_str());
+    delete c;
+  }
 }
-void OnlineGUI::HistDraw(std::map<TString,TString> &command) {
+
+void OnlineGUI::HistDraw( const map<string, string>& command )
+{
   // Called by DoDraw(), this will plot a histogram.
 
   Bool_t showGolden = kFALSE;
@@ -888,13 +898,15 @@ void OnlineGUI::HistDraw(std::map<TString,TString> &command) {
   // cout<<"showGolden= "<<showGolden<<endl;
 
   TString drawopt = "";
-  if( command.find("drawopt") != command.end() ){
-    drawopt = command["drawopt"];
+  auto iopt = command.find("drawopt");
+  if( iopt != command.end() ) {
+    drawopt = iopt->second;
   }
 
   TString newtitle = "";
-  if( command.find("title") != command.end() ){
-    newtitle = command["title"];
+  auto it = command.find("title");
+  if( it != command.end() ) {
+    newtitle = it->second;
   }
 
   if( command.find("logx") != command.end() ) {
@@ -915,118 +927,131 @@ void OnlineGUI::HistDraw(std::map<TString,TString> &command) {
   }
 
   // Determine dimensionality of histogram
-  for(UInt_t i=0; i<fileObjects.size(); i++) {
-    if (fileObjects[i].first.Contains(command["variable"])) {
-      if(fileObjects[i].second.Contains("TH1")) {
-	if(showGolden) fRootFile->cd();
-	mytemp1d = (TH1D*)gDirectory->Get(command["variable"]);
-	if(mytemp1d->GetEntries()==0) {
-	  BadDraw("Empty Histogram");
-	} else {
-	  if(showGolden) {
-	    fGoldenFile->cd();
-	    mytemp1d_golden = (TH1D*)gDirectory->Get(command["variable"]);
-	    mytemp1d_golden->SetLineColor(30);
-	    mytemp1d_golden->SetFillColor(30);
-	    Int_t fillstyle=3027;
-	    if(fPrintOnly) fillstyle=3010;
-	    mytemp1d_golden->SetFillStyle(fillstyle);
-	    mytemp1d_golden->SetStats(false);
-	    if( newtitle != "" ) mytemp1d_golden->SetTitle(newtitle);
-	    mytemp1d_golden->Draw();
-	    cout<<"one golden histo drawn"<<endl;
-	    mytemp1d->SetStats(showstat);
-	    mytemp1d->Draw("sames"+drawopt);
-	  } else {
-	    mytemp1d->SetStats(showstat);
-	    if( newtitle != "" ) mytemp1d->SetTitle(newtitle);
-	    mytemp1d->Draw(drawopt);
+  auto ivar = command.find("variable");
+  if( ivar == command.end() )
+    return;
+  const string& cmdvar = ivar->second;
+  for( const auto& fileObject: fileObjects ) {
+    if( fileObject.first.Contains(cmdvar) ) {
+      if( fileObject.second.Contains("TH1") ) {
+        if( showGolden ) fRootFile->cd();
+        mytemp1d = (TH1D*) gDirectory->Get(cmdvar.c_str());
+        if( mytemp1d->GetEntries() == 0 ) {
+          BadDraw("Empty Histogram");
+        } else {
+          if( showGolden ) {
+            fGoldenFile->cd();
+            mytemp1d_golden = (TH1D*) gDirectory->Get(cmdvar.c_str());
+            mytemp1d_golden->SetLineColor(30);
+            mytemp1d_golden->SetFillColor(30);
+            Int_t fillstyle = 3027;
+            if( fPrintOnly ) fillstyle = 3010;
+            mytemp1d_golden->SetFillStyle(fillstyle);
+            mytemp1d_golden->SetStats(false);
+            if( newtitle != "" ) mytemp1d_golden->SetTitle(newtitle);
+            mytemp1d_golden->Draw();
+            cout << "one golden histo drawn" << endl;
+            mytemp1d->SetStats(showstat);
+            mytemp1d->Draw("sames" + drawopt);
+          } else {
+            mytemp1d->SetStats(showstat);
+            if( newtitle != "" ) mytemp1d->SetTitle(newtitle);
+            mytemp1d->Draw(drawopt);
 
-      SaveImage(mytemp1d, command);
-	  }
-	}
-	break;
+            SaveImage(mytemp1d, command);
+          }
+        }
+        break;
       }
-      if(fileObjects[i].second.Contains("TH2")) {
-	if(showGolden) fRootFile->cd();
-	mytemp2d = (TH2D*)gDirectory->Get(command["variable"]);
-	if(mytemp2d->GetEntries()==0) {
-	  BadDraw("Empty Histogram");
-	} else {
-	  // These are commented out for some reason (specific to DVCS?)
-	  // 	  if(showGolden) {
-	  // 	    fGoldenFile->cd();
-	  // 	    mytemp2d_golden = (TH2D*)gDirectory->Get(command["variable"]);
-	  // 	    mytemp2d_golden->SetMarkerColor(2);
-	  // 	    mytemp2d_golden->Draw();
-	  //mytemp2d->Draw("sames");
-	  // 	  } else { because it usually doesn't make sense to superimpose two 2d histos together:
+      if( fileObject.second.Contains("TH2") ) {
+        if( showGolden ) fRootFile->cd();
+        mytemp2d = (TH2D*) gDirectory->Get(cmdvar.c_str());
+        if( mytemp2d->GetEntries() == 0 ) {
+          BadDraw("Empty Histogram");
+        } else {
+          // These are commented out for some reason (specific to DVCS?)
+          // 	  if(showGolden) {
+          // 	    fGoldenFile->cd();
+          // 	    mytemp2d_golden = (TH2D*)gDirectory->Get(command["variable"]);
+          // 	    mytemp2d_golden->SetMarkerColor(2);
+          // 	    mytemp2d_golden->Draw();
+          //mytemp2d->Draw("sames");
+          // 	  } else { because it usually doesn't make sense to superimpose two 2d histos together:
 
-	  if( drawopt.Contains("colz") ){
-	    gPad->SetRightMargin(0.15);
-	  }
+          if( drawopt.Contains("colz") ) {
+            gPad->SetRightMargin(0.15);
+          }
 
-	  if( newtitle != "" ) mytemp2d->SetTitle(newtitle);
-	  mytemp2d->SetStats(showstat);
-	  mytemp2d->Draw(drawopt);
-    SaveImage(mytemp2d, command);
-	  // 	  }
-	}
-	break;
+          if( newtitle != "" ) mytemp2d->SetTitle(newtitle);
+          mytemp2d->SetStats(showstat);
+          mytemp2d->Draw(drawopt);
+          SaveImage(mytemp2d, command);
+          // 	  }
+        }
+        break;
       }
-      if(fileObjects[i].second.Contains("TH3")) {
-	if(showGolden) fRootFile->cd();
-	mytemp3d = (TH3D*)gDirectory->Get(command["variable"]);
-	if(mytemp3d->GetEntries()==0) {
-	  BadDraw("Empty Histogram");
-	} else {
-	  mytemp3d->Draw();
-	  if(showGolden) {
-	    fGoldenFile->cd();
-	    mytemp3d_golden = (TH3D*)gDirectory->Get(command["variable"]);
-	    mytemp3d_golden->SetMarkerColor(2);
-	    mytemp3d_golden->Draw();
-	    mytemp3d->Draw("sames"+drawopt);
-	  } else {
-	    mytemp3d->Draw(drawopt);
-	  }
+      if( fileObject.second.Contains("TH3") ) {
+        if( showGolden ) fRootFile->cd();
+        mytemp3d = (TH3D*) gDirectory->Get(cmdvar.c_str());
+        if( mytemp3d->GetEntries() == 0 ) {
+          BadDraw("Empty Histogram");
+        } else {
+          mytemp3d->Draw();
+          if( showGolden ) {
+            fGoldenFile->cd();
+            mytemp3d_golden = (TH3D*) gDirectory->Get(cmdvar.c_str());
+            mytemp3d_golden->SetMarkerColor(2);
+            mytemp3d_golden->Draw();
+            mytemp3d->Draw("sames" + drawopt);
+          } else {
+            mytemp3d->Draw(drawopt);
+          }
 
-    SaveImage(mytemp3d, command);
-	}
-	break;
+          SaveImage(mytemp3d, command);
+        }
+        break;
       }
     }
   }
 
 }
 
-void OnlineGUI::TreeDraw(map<TString,TString> &command) {
+static const string& getMapVal( const map<string, string>& m, const string& key )
+{
+  static const string nullstr{};
+  auto it = m.find(key);
+  return it != m.end() ? it->second : nullstr;
+}
+
+void OnlineGUI::TreeDraw( const map<string, string>& command )
+{
   // Called by DoDraw(), this will plot a Tree Variable
 
-  TString var = command["variable"];
+  const string& mvar = getMapVal(command, "variable");
+  TString var = mvar;
 
   //  Check to see if we're projecting to a specific histogram
-  TString histoname = command["variable"](TRegexp(">>.+(?"));
-  if (histoname.Length()>0){
-    histoname.Remove(0,2);
+  TString histoname = var(TRegexp(">>.+(?"));
+  if( histoname.Length() > 0 ) {
+    histoname.Remove(0, 2);
     Int_t bracketindex = histoname.First("(");
-    if (bracketindex>0) histoname.Remove(bracketindex);
-    if(fVerbosity>=3)
-      std::cout << histoname << " "<< command["variable"](TRegexp(">>.+(?")) <<std::endl;
+    if( bracketindex > 0 ) histoname.Remove(bracketindex);
+    if( fVerbosity >= 3 )
+      cout << histoname << " " << var(TRegexp(">>.+(?")) << endl;
   } else {
     histoname = "htemp";
   }
 
   // Combine the cuts (definecuts and specific cuts)
   TCut cut = "";
-  TString tempCut;
-  if(command.size()>1) {
-    tempCut = command["cut"];
-    vector <TString> cutIdents = fConfig.GetCutIdent();
-    for(UInt_t i=0; i<cutIdents.size(); i++) {
-      if(tempCut.Contains(cutIdents[i])) {
-	TString cut_found = (TString)fConfig.GetDefinedCut(cutIdents[i]);
-	tempCut.ReplaceAll(cutIdents[i],cut_found);
+  const string& mcut = getMapVal(command, "cut");
+  if( command.size() > 1 ) {
+    TString tempCut = mcut;
+    vector<string> cutIdents = fConfig.GetCutIdent();
+    for( const auto& cutIdent: cutIdents ) {
+      if( tempCut.Contains(cutIdent) ) {
+        TString cut_found = fConfig.GetDefinedCut(cutIdent);
+        tempCut.ReplaceAll(cutIdent, cut_found);
       }
     }
     cut = (TCut) tempCut;
@@ -1034,46 +1059,51 @@ void OnlineGUI::TreeDraw(map<TString,TString> &command) {
 
   // Determine which Tree the variable comes from, then draw it.
   UInt_t iTree;
-  if(command["tree"].IsNull()) {
+  const string& mtree = getMapVal(command, "tree");
+  if( mtree.empty() ) {
     iTree = GetTreeIndex(var);
     if( fVerbosity >= 2 )
       cout << "got index from variable " << iTree << endl;
   } else {
-    iTree = GetTreeIndexFromName(command["tree"]);
-    if(fVerbosity>=2)
-      cout<<"got index from command "<<iTree<<endl;
+    iTree = GetTreeIndexFromName(mtree);
+    if( fVerbosity >= 2 )
+      cout << "got index from command " << iTree << endl;
   }
-  TString drawopt = command["drawopt"];
 
-  std::cout << "drawopt = " << drawopt << std::endl;
+  string mopt = getMapVal(command, "drawopt");
+  cout << "drawopt = " << mopt << std::endl;
+  if( mopt.find("colz") != string::npos )
+    gPad->SetRightMargin(0.15);
+  string mtitle = getMapVal(command, "title");
 
-  if( drawopt.Contains("colz") ) gPad->SetRightMargin(0.15);
-
-  if(fVerbosity>=3)
-    cout<<"\tDraw option:"<<drawopt<<" and histo name "<<histoname<<endl;
-  Int_t errcode=0;
-  if (iTree <= fRootTree.size() ) {
-    if(fVerbosity>=1){
-      cout<<__PRETTY_FUNCTION__<<"\t"<<__LINE__<<endl;
-      cout<<command["variable"]<<"\t"<<command["cut"]<<"\t"<<command["drawopt"]<<"\t"<<command[3]
-	  <<"\t"<<command["tree"]<<endl;
-      if(fVerbosity>=2)
-	cout<<"\tProcessing from tree: "<<iTree<<"\t"<<fRootTree[iTree]->GetTitle()<<"\t"
-	    <<fRootTree[iTree]->GetName()<<endl;
+  if( fVerbosity >= 3 )
+    cout << "\tDraw option:" << mopt << " and histo name " << histoname << endl;
+  Int_t errcode;
+  if( iTree <= fRootTree.size() ) {
+    if( fVerbosity >= 1 ) {
+      cout << __PRETTY_FUNCTION__ << "\t" << __LINE__ << endl;
+      cout << mvar << "\t"
+           << mcut << "\t"
+           << mopt << "\t"
+           << mtitle << "\t"
+           << mtree << endl;
+      if( fVerbosity >= 2 )
+        cout << "\tProcessing from tree: " << iTree << "\t" << fRootTree[iTree]->GetTitle() << "\t"
+             << fRootTree[iTree]->GetName() << endl;
     }
-    errcode = fRootTree[iTree]->Draw(var,cut,drawopt);
-    if (command["grid"].EqualTo("grid")){
+    errcode = fRootTree[iTree]->Draw(var, cut, mopt.c_str());
+    if( getMapVal(command, "grid") == "grid" ) {
       gPad->SetGrid();
     }
 
-    TObject *hobj = (TObject*)gROOT->FindObject(histoname);
-    if(fVerbosity>=3)
-      cout<<"Finished drawing with error code "<<errcode<<endl;
+    TObject* hobj = gROOT->FindObject(histoname);
+    if( fVerbosity >= 3 )
+      cout << "Finished drawing with error code " << errcode << endl;
 
-    if(errcode==-1) {
-      BadDraw(var+" not found");
-    } else if (errcode!=0) {
-      if(!command[3].IsNull()) {
+    if( errcode == -1 ) {
+      BadDraw(var + " not found");
+    } else if( errcode != 0 ) {
+      if( !mtitle.empty() ) {
         //  Generate a "unique" histogram name based on the MD5 of the drawn variable, cut, drawopt,
         //  and plot title.
         //  Makes it less likely to cause a name collision if two plot titles are the same.
@@ -1081,12 +1111,12 @@ void OnlineGUI::TreeDraw(map<TString,TString> &command) {
         //  since they are exactly the same, you likely won't notice (or it will complain at you).
         TString tmpstring(var);
         tmpstring += cut.GetTitle();
-        tmpstring += drawopt;
-        tmpstring += command["title"];
+        tmpstring += mopt;
+        tmpstring += mtitle;
         TString myMD5 = tmpstring.MD5();
-	TH1* thathist = (TH1*)hobj;
-	thathist->SetNameTitle(myMD5,command["title"]);
-  SaveImage(thathist, command);
+        TH1* thathist = (TH1*) hobj;
+        thathist->SetNameTitle(myMD5, mtitle.c_str());
+        SaveImage(thathist, command);
       }
     } else {
       BadDraw("Empty Histogram");
@@ -1256,8 +1286,8 @@ void OnlineGUI::MyCloseWindow()
   delete vframe;
   delete fTopframe;
   delete fMain;
-  if(fGoldenFile!=NULL) delete fGoldenFile;
-  if(fRootFile!=NULL) delete fRootFile;
+  delete fGoldenFile;
+  delete fRootFile;
 
   gApplication->Terminate();
 }
@@ -1288,6 +1318,6 @@ OnlineGUI::~OnlineGUI()
   delete fBottomFrame;
   delete fTopframe;
   delete fMain;
-  if(fGoldenFile!=NULL) delete fGoldenFile;
-  if(fRootFile!=NULL) delete fRootFile;
+  delete fGoldenFile;
+  delete fRootFile;
 }
