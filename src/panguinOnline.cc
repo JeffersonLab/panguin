@@ -378,15 +378,37 @@ void OnlineGUI::DoDraw()
   for( UInt_t i = 0; i < draw_count; i++ ) {
     fConfig.GetDrawCommand(current_page, i, drawcommand);
     fCanvas->cd(i + 1);
+//    auto* pad = fCanvas->cd(i + 1);
 
-    if( drawcommand.find("variable") != drawcommand.end() ) {
-      if( drawcommand["variable"] == "macro" ) {
+    auto ivar = drawcommand.find("variable");
+    if( ivar != drawcommand.end() ) {
+      const string& cmd = ivar->second;
+      if( cmd == "macro" ) {
         MacroDraw(drawcommand);
-      } else if( drawcommand["variable"] == "loadmacro" ) {
+        // test - joh
+        // For some odd reason, this does not work right. The first subpad
+        // of a page saves fine, but subsequent ones are increasingly
+        // visually corrupted. The brilliant ROOT graphics ...
+//        string macname = getMapVal(drawcommand, "macro");
+//        auto pos = macname.find('.');
+//        if( pos != string::npos )
+//          macname.erase(pos);
+//        macname += "-pg" + to_string(current_page) + "-pad" + to_string(i);
+//        if( fConfig.DoSaveImages() ) {
+////          pad->GetListOfPrimitives()->Print();
+////          cout << "saving macro image " << macname << endl;
+////          auto* c = new TCanvas("c", "c", gPad->GetWw(), gPad->GetWh());
+////          for( const auto&& obj : *pad->GetListOfPrimitives() )
+////            obj->Draw();
+////          c->SaveAs((string("hydra_") + macname + ".png").c_str());
+//          pad->SaveAs((string("hydra_") + macname + ".png").c_str());
+////          delete c;
+//        }
+      } else if( cmd == "loadmacro" ) {
         LoadDraw(drawcommand);
-      } else if( drawcommand["variable"] == "loadlib" ) {
+      } else if( cmd == "loadlib" ) {
         LoadLib(drawcommand);
-      } else if( IsHistogram(drawcommand["variable"]) ) {
+      } else if( IsHistogram(cmd) ) {
         HistDraw(drawcommand);
       } else {
         TreeDraw(drawcommand);
