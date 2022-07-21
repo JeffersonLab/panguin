@@ -23,11 +23,6 @@ int main( int argc, char** argv )
   int verbosity{0};
   bool printonly{false};
   bool saveImages{false};
-  int verbosity{0};
-
-  TString macropath = gROOT->GetMacroPath();
-  macropath += ":./macros";
-  gROOT->SetMacroPath(macropath.Data());
 
   cout << "Starting processing arg. Time passed: "
        << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
@@ -99,6 +94,13 @@ void online( const OnlineConfig::CmdLineOpts& opts )
   OnlineConfig fconfig(opts);
   if( !fconfig.ParseConfig() )
     gApplication->Terminate();
+
+  TString macropath = gROOT->GetMacroPath();
+  macropath += ":./macros";   // for backward compatibility
+  TString guidir = fconfig.GetGuiDirectory();
+  if( !guidir.IsNull() )
+    macropath = ".:" + guidir + ":" + macropath;
+  gROOT->SetMacroPath(macropath);
 
   if( opts.run != 0 )
     fconfig.OverrideRootFile(opts.run);
