@@ -602,45 +602,21 @@ UInt_t OnlineGUI::GetTreeIndex( TString var )
   // larger than fRootTree.size()
 
   //  This is for 2d draws... look for the first only
-  if(var.Contains(":")) {
-    TString first_var = fConfig.SplitString(var,":")[0];
-    var = first_var;
-  }
-  if(var.Contains("-")) {
-    TString first_var = fConfig.SplitString(var,"-")[0];
-    var = first_var;
-  }
-  if(var.Contains("/")) {
-    TString first_var = fConfig.SplitString(var,"/")[0];
-    var = first_var;
-  }
-  if(var.Contains("*")) {
-    TString first_var = fConfig.SplitString(var,"*")[0];
-    var = first_var;
-  }
-  if(var.Contains("+")) {
-    TString first_var = fConfig.SplitString(var,"+")[0];
-    var = first_var;
-  }
-  if(var.Contains("(")) {
-    TString first_var = fConfig.SplitString(var,"(")[0];
-    var = first_var;
-  }
-  //  This is for variables with multiple dimensions.
-  if(var.Contains("[")) {
-    TString first_var = fConfig.SplitString(var,"[")[0];
-    var = first_var;
-  }
+  string svar{var.Data()};
+  auto pos = svar.find_first_of(":-/*+([");
+  if( pos != string::npos )
+    svar.erase(pos);
 
-  if(fVerbosity>=3)
-    cout<<__PRETTY_FUNCTION__<<"\t"<<__LINE__<<endl
-	<<"\t looking for variable: "<<var<<endl;
-  for(UInt_t iTree=0; iTree<treeVars.size(); iTree++) {
-    for(UInt_t ivar=0; ivar<treeVars[iTree].size(); ivar++) {
-      if(fVerbosity>=4)
-	cout<<"Checking tree "<<iTree<<" name:"<<fRootTree[iTree]->GetName()
-	    <<" \t var "<<ivar<<" >> "<<treeVars[iTree][ivar]<<endl;
-      if(var == treeVars[iTree][ivar]) return iTree;
+  if( fVerbosity >= 3 )
+    cout << __PRETTY_FUNCTION__ << "\t" << __LINE__ << endl
+         << "\t looking for variable: " << svar << endl;
+
+  for( UInt_t iTree = 0; iTree < treeVars.size(); iTree++ ) {
+    for( UInt_t ivar = 0; ivar < treeVars[iTree].size(); ivar++ ) {
+      if( fVerbosity >= 4 )
+        cout << "Checking tree " << iTree << " name:" << fRootTree[iTree]->GetName()
+             << " \t var " << ivar << " >> " << treeVars[iTree][ivar] << endl;
+      if( svar == treeVars[iTree][ivar] ) return iTree;
     }
   }
 
