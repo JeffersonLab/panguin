@@ -1100,7 +1100,6 @@ void OnlineGUI::TreeDraw( const map<string, string>& command )
 
   if( fVerbosity >= 3 )
     cout << "\tDraw option:" << mopt << " and histo name " << histoname << endl;
-  Int_t errcode;
   if( iTree <= fRootTree.size() ) {
     if( fVerbosity >= 1 ) {
       cout << __PRETTY_FUNCTION__ << "\t" << __LINE__ << endl;
@@ -1113,18 +1112,18 @@ void OnlineGUI::TreeDraw( const map<string, string>& command )
         cout << "\tProcessing from tree: " << iTree << "\t" << fRootTree[iTree]->GetTitle() << "\t"
              << fRootTree[iTree]->GetName() << endl;
     }
-    errcode = fRootTree[iTree]->Draw(var, cut, mopt.c_str());
+    Long64_t nentries = fRootTree[iTree]->Draw(var, cut, mopt.c_str());
     if( getMapVal(command, "grid") == "grid" ) {
       gPad->SetGrid();
     }
 
     TObject* hobj = gROOT->FindObject(histoname);
     if( fVerbosity >= 3 )
-      cout << "Finished drawing with error code " << errcode << endl;
+      cout << "Finished drawing with return value " << nentries << endl;
 
-    if( errcode == -1 ) {
+    if( nentries == -1 ) {
       BadDraw(var + " not found");
-    } else if( errcode != 0 ) {
+    } else if( nentries != 0 ) {
       if( !mtitle.empty() ) {
         //  Generate a "unique" histogram name based on the MD5 of the drawn variable, cut, drawopt,
         //  and plot title.
