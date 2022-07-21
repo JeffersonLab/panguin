@@ -29,6 +29,7 @@
 #include <map>
 #include <list>
 #include <utility>
+#include <cassert>
 
 #define OLDTIMERUPDATE
 
@@ -305,6 +306,14 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
     timer->Start(UPDATETIME);
   }
 
+}
+
+// Helper function to get value for given key from const std::map&
+static const string& getMapVal( const map<string, string>& m, const string& key )
+{
+  static const string nullstr{};
+  auto it = m.find(key);
+  return it != m.end() ? it->second : nullstr;
 }
 
 void OnlineGUI::DoDraw()
@@ -648,8 +657,6 @@ void OnlineGUI::MacroDraw( const map<string, string>& command )
 
   if( doGolden ) fRootFile->cd();
   gROOT->Macro(imac->second.c_str());
-
-
 }
 
 void OnlineGUI::LoadDraw( const map<string, string>& command )
@@ -889,13 +896,10 @@ void OnlineGUI::HistDraw( const map<string, string>& command )
 {
   // Called by DoDraw(), this will plot a histogram.
 
-  Bool_t showGolden = kFALSE;
-  if( doGolden ) showGolden = kTRUE;
-
+  Bool_t showGolden = doGolden;
   if( command.find("noshowgolden") != command.end() ) {
     showGolden = kFALSE;
   }
-  // cout<<"showGolden= "<<showGolden<<endl;
 
   TString drawopt = "";
   auto iopt = command.find("drawopt");
@@ -927,57 +931,59 @@ void OnlineGUI::HistDraw( const map<string, string>& command )
   }
 
   // Determine dimensionality of histogram
-  auto ivar = command.find("variable");
-  if( ivar == command.end() )
-    return;
-  const string& cmdvar = ivar->second;
+  const string& var = getMapVal(command, "variable");
+  if( var.empty() ) return;
+  const char* cvar = var.c_str();
   for( const auto& fileObject: fileObjects ) {
-    if( fileObject.first.Contains(cmdvar) ) {
+    if( fileObject.first.Contains(var) ) {
       if( fileObject.second.Contains("TH1") ) {
         if( showGolden ) fRootFile->cd();
-        mytemp1d = (TH1D*) gDirectory->Get(cmdvar.c_str());
+        mytemp1d = dynamic_cast<TH1*> (gDirectory->Get(cvar));
+        assert(mytemp1d);
+        if( !mytemp1d ) break;
         if( mytemp1d->GetEntries() == 0 ) {
           BadDraw("Empty Histogram");
         } else {
           if( showGolden ) {
             fGoldenFile->cd();
-            mytemp1d_golden = (TH1D*) gDirectory->Get(cmdvar.c_str());
+            mytemp1d_golden = dynamic_cast<TH1*> (gDirectory->Get(cvar));
+            assert(mytemp1d_golden);
+            if( !mytemp1d_golden ) break;
             mytemp1d_golden->SetLineColor(30);
             mytemp1d_golden->SetFillColor(30);
-            Int_t fillstyle = 3027;
-            if( fPrintOnly ) fillstyle = 3010;
+            Style_t fillstyle = fPrintOnly ? 3010 : 3027;
             mytemp1d_golden->SetFillStyle(fillstyle);
             mytemp1d_golden->SetStats(false);
             if( newtitle != "" ) mytemp1d_golden->SetTitle(newtitle);
             mytemp1d_golden->Draw();
-            cout << "one golden histo drawn" << endl;
             mytemp1d->SetStats(showstat);
             mytemp1d->Draw("sames" + drawopt);
           } else {
             mytemp1d->SetStats(showstat);
             if( newtitle != "" ) mytemp1d->SetTitle(newtitle);
             mytemp1d->Draw(drawopt);
-
-            SaveImage(mytemp1d, command);
           }
+          SaveImage(mytemp1d, command);
         }
         break;
       }
       if( fileObject.second.Contains("TH2") ) {
         if( showGolden ) fRootFile->cd();
-        mytemp2d = (TH2D*) gDirectory->Get(cmdvar.c_str());
+        mytemp2d = dynamic_cast<TH2*> (gDirectory->Get(cvar));
+        assert(mytemp2d);
+        if( !mytemp2d ) break;
         if( mytemp2d->GetEntries() == 0 ) {
           BadDraw("Empty Histogram");
         } else {
-          // These are commented out for some reason (specific to DVCS?)
+          // These are commented out because it usually doesn't make sense to
+          // superimpose two 2d histos together
           // 	  if(showGolden) {
           // 	    fGoldenFile->cd();
-          // 	    mytemp2d_golden = (TH2D*)gDirectory->Get(command["variable"]);
+          // 	    mytemp2d_golden = (TH2*)gDirectory->Get(cvar);
           // 	    mytemp2d_golden->SetMarkerColor(2);
           // 	    mytemp2d_golden->Draw();
           //mytemp2d->Draw("sames");
-          // 	  } else { because it usually doesn't make sense to superimpose two 2d histos together:
-
+          // 	  } else {
           if( drawopt.Contains("colz") ) {
             gPad->SetRightMargin(0.15);
           }
@@ -986,41 +992,35 @@ void OnlineGUI::HistDraw( const map<string, string>& command )
           mytemp2d->SetStats(showstat);
           mytemp2d->Draw(drawopt);
           SaveImage(mytemp2d, command);
-          // 	  }
         }
         break;
       }
       if( fileObject.second.Contains("TH3") ) {
         if( showGolden ) fRootFile->cd();
-        mytemp3d = (TH3D*) gDirectory->Get(cmdvar.c_str());
+        mytemp3d = dynamic_cast<TH3*> (gDirectory->Get(cvar));
+        assert(mytemp3d);
+        if( !mytemp3d ) break;
         if( mytemp3d->GetEntries() == 0 ) {
           BadDraw("Empty Histogram");
         } else {
           mytemp3d->Draw();
           if( showGolden ) {
             fGoldenFile->cd();
-            mytemp3d_golden = (TH3D*) gDirectory->Get(cmdvar.c_str());
+            mytemp3d_golden = dynamic_cast<TH3*> (gDirectory->Get(cvar));
+            assert(mytemp3d_golden);
+            if( !mytemp3d_golden ) break;
             mytemp3d_golden->SetMarkerColor(2);
             mytemp3d_golden->Draw();
             mytemp3d->Draw("sames" + drawopt);
           } else {
             mytemp3d->Draw(drawopt);
           }
-
           SaveImage(mytemp3d, command);
         }
         break;
       }
     }
   }
-
-}
-
-static const string& getMapVal( const map<string, string>& m, const string& key )
-{
-  static const string nullstr{};
-  auto it = m.find(key);
-  return it != m.end() ? it->second : nullstr;
 }
 
 void OnlineGUI::TreeDraw( const map<string, string>& command )

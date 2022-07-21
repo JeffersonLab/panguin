@@ -60,12 +60,12 @@ class OnlineGUI {
   Bool_t fFileAlive;
   Bool_t fPrintOnly;
   Bool_t fSaveImages;
-  TH1D* mytemp1d = nullptr;
-  TH2D* mytemp2d = nullptr;
-  TH3D* mytemp3d = nullptr;
-  TH1D* mytemp1d_golden = nullptr;
-  TH2D* mytemp2d_golden = nullptr;
-  TH3D* mytemp3d_golden = nullptr;
+  TH1* mytemp1d = nullptr;
+  TH2* mytemp2d = nullptr;
+  TH3* mytemp3d = nullptr;
+  TH1* mytemp1d_golden = nullptr;
+  //TH2* mytemp2d_golden = nullptr;
+  TH3* mytemp3d_golden = nullptr;
 
   int fVerbosity;
 
