@@ -202,12 +202,12 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
 
   if( !fConfig.IsMonitor() ) {
     wile =
-      new TGPictureButton(vframe,gClient->GetPicture(fConfig.GetGuiDirectory()+"/genius.xpm"));
-    wile->Connect("Pressed()","OnlineGUI", this,"DoDraw()");
+      new TGPictureButton(vframe, gClient->GetPicture((fConfig.GetGuiDirectory() + "/genius.xpm").c_str()));
+    wile->Connect("Pressed()", "OnlineGUI", this, "DoDraw()");
   } else {
     wile =
-      new TGPictureButton(vframe,gClient->GetPicture(fConfig.GetGuiDirectory()+"/panguin.xpm"));
-    wile->Connect("Pressed()","OnlineGUI", this,"DoDrawClear()");
+      new TGPictureButton(vframe, gClient->GetPicture((fConfig.GetGuiDirectory() + "/panguin.xpm").c_str()));
+    wile->Connect("Pressed()", "OnlineGUI", this, "DoDrawClear()");
   }
   wile->SetBackgroundColor(mainguicolor);
 
@@ -398,8 +398,8 @@ void OnlineGUI::DoDraw()
     sLastUpdated += buffer;
     fLastUpdated->SetText(sLastUpdated);
 
-    struct stat result;
-    stat(fConfig.GetRootFile().Data(), &result);
+    struct stat result{};
+    stat(fConfig.GetRootFile(), &result);
     time_t tf = result.st_mtime;
     strftime(buffer, 9, "%T", localtime(&tf));
 

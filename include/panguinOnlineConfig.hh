@@ -7,38 +7,36 @@
 #include <set>
 #include <map>
 #include <string>
-#include <TString.h>
-#include "TCut.h"
 
-//static TString guiDirectory = "macros";
+using uint_t = unsigned int;
+using strstr_t = std::pair<std::string, std::string>;
 
 class OnlineConfig {
   // Class that takes care of the config file
-  TString confFileName;                   // config filename
-  std::ifstream *fConfFile;                    // original config file
-  std::vector < std::vector <TString> > sConfFile;  // the config file, in memory
-  TString rootfilename;  //  Just the name
-  TString goldenrootfilename; // Golden rootfile for comparisons
-  TString protorootfile; // Prototype for getting the rootfilename
-  TString guicolor; // User's choice of background color
-  TString plotsdir; // Where to store sample plots.. automatically stored as .jpg's).
+  std::string confFileName;       // config filename
+  std::string fConfFilePath;      // Search path for configuration files
+  std::vector<std::vector<std::string>> sConfFile;  // the config file, in memory
+  std::string rootfilename;  //  Just the name
+  std::string goldenrootfilename; // Golden rootfile for comparisons
+  std::string protorootfile; // Prototype for getting the rootfilename
+  std::string guicolor; // User's choice of background color
+  std::string plotsdir; // Where to store sample plots.. automatically stored as .jpg's).
   // pageInfo is the vector of the pages containing the sConfFile index
   //   and how many commands issued within that page (title, 1d, etc.)
-  std::vector < std::pair <UInt_t,UInt_t> > pageInfo;
-  std::vector <TCut> cutList;
-  std::vector <UInt_t> GetDrawIndex(UInt_t);
-  Bool_t fFoundCfg;
-  Bool_t fMonitor;
+  std::vector<std::pair<uint_t, uint_t> > pageInfo;
+  std::vector<strstr_t> cutList;
+  std::vector<uint_t> GetDrawIndex( uint_t );
+  bool fFoundCfg;
+  bool fMonitor;
   int fVerbosity;
-  int hist2D_nBinsX,hist2D_nBinsY;
-  TString fPlotFormat;
+  int hist2D_nBinsX, hist2D_nBinsY;
+  std::string fPlotFormat;
   int fRunNumber;
   bool fPrintOnly;
   bool fSaveImages;
 
-  TString guiDirectory; //Initialize this from environment variables
 
-  void ParseFile();
+  int LoadFile( std::ifstream& infile );
 
 public:
   struct CmdLineOpts {
@@ -52,35 +50,38 @@ public:
   };
 
   OnlineConfig();
-  explicit OnlineConfig(const TString&);
-  explicit OnlineConfig(const CmdLineOpts& opts);
-  Bool_t ParseConfig();
-  int GetRunNumber() const { return fRunNumber;}
+  explicit OnlineConfig( const std::string& config_file_name );
+  explicit OnlineConfig( const CmdLineOpts& opts );
+  bool ParseConfig();
+  int GetRunNumber() const { return fRunNumber; }
 
-  TString GetGuiDirectory() const{ return guiDirectory; }
-  TString GetConfFileName() const{return confFileName;}
-  void Get2DnumberBins(int &nX, int &nY) const {nX = hist2D_nBinsX; nY = hist2D_nBinsY;}
-  void SetVerbosity(int ver){fVerbosity=ver;}
-  TString GetPlotFormat() const {return fPlotFormat;}
-  TString GetRootFile() const { return rootfilename; };
-  TString GetGoldenFile() const { return goldenrootfilename; };
-  TString GetGuiColor() const { return guicolor; };
-  TString GetPlotsDir() const { return plotsdir; };
+  const std::string& GetGuiDirectory() const { return fConfFilePath; }
+  const std::string& GetConfFileName() const { return confFileName; }
+  void Get2DnumberBins( int& nX, int& nY ) const
+  {
+    nX = hist2D_nBinsX;
+    nY = hist2D_nBinsY;
+  }
+  void SetVerbosity( int ver ) { fVerbosity = ver; }
+  const char *GetPlotFormat() const { return fPlotFormat.c_str(); }
+  const char *GetRootFile() const { return rootfilename.c_str(); };
+  const std::string& GetGoldenFile() const { return goldenrootfilename; };
+  const std::string& GetGuiColor() const { return guicolor; };
+  const std::string& GetPlotsDir() const { return plotsdir; };
   int GetVerbosity() const { return fVerbosity; }
-  int DoPrintOnly() const { return fPrintOnly; }
-  int DoSaveImages() const { return fSaveImages; }
-  TCut GetDefinedCut(TString ident);
-  std::vector <TString> GetCutIdent();
+  bool DoPrintOnly() const { return fPrintOnly; }
+  bool DoSaveImages() const { return fSaveImages; }
+  const std::string& GetDefinedCut( const std::string& ident );
+  std::vector<std::string> GetCutIdent();
   // Page utilites
-  UInt_t  GetPageCount() { return pageInfo.size(); };
-  std::pair <UInt_t,UInt_t> GetPageDim(UInt_t);
-  Bool_t IsLogy(UInt_t page);
-  TString GetPageTitle(UInt_t);
-  UInt_t GetDrawCount(UInt_t);           // Number of histograms in a page
-  void GetDrawCommand(UInt_t,UInt_t, std::map<TString,TString> &);
-  std::vector <TString> SplitString(TString,TString);
-  void OverrideRootFile(UInt_t);
-  Bool_t IsMonitor() const { return fMonitor; };
+  uint_t GetPageCount() { return pageInfo.size(); };
+  std::pair<uint_t, uint_t> GetPageDim( uint_t );
+  bool IsLogy( uint_t page );
+  std::string GetPageTitle( uint_t );
+  uint_t GetDrawCount( uint_t );           // Number of histograms in a page
+  void GetDrawCommand( uint_t, uint_t, std::map<std::string, std::string>& );
+  void OverrideRootFile( int runnumber );
+  bool IsMonitor() const { return fMonitor; };
 };
 
 #endif //panguinOnlineConfig_h
