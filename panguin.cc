@@ -19,7 +19,8 @@ int main( int argc, char** argv )
   string cfgfile{"default.cfg"};
   string cfgdir;
   string plotfmt{"pdf"};
-  UInt_t run{0};
+  int run{0};
+  int verbosity{0};
   bool printonly{false};
   bool saveImages{false};
   int verbosity{0};
@@ -49,20 +50,19 @@ int main( int argc, char** argv )
 
   CLI11_PARSE(cli, argc, argv);
 
-  if( verbosity > 1 ) {
+  if( verbosity <= 0 ) {
+    verbosity = 0;
+    cout << "Verbosity level set to " << verbosity << endl;
+    cout << "Job config file: " << cfgfile << endl;
+    cout << "Run number: " << run << endl;
+    cout << "Config dir: " << cfgdir << endl;
+  } else if( verbosity > 0 ) {
     cout << cli.config_to_str(true, false);
   }
 
-  if (verbosity < 0)
-    verbosity = 0;
-  cout << "Verbosity level set to "<<verbosity<<endl;
+  cout << "Finished processing args. Time passed: "
+       << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
 
-  cout<<"Finished processing arg. Time passed: "
-      <<(double) ((clock() - tStart)/CLOCKS_PER_SEC)<<" s!"<<endl;
-
-  cout << "Job config file: " << cfgfile << endl;
-  cout << "Run number: " << run << endl;
-  cout << "Config dir: " << cfgdir << endl;
 
   if( !gSystem->AccessPathName("./rootlogon.C") ) {
     gROOT->ProcessLine(".x rootlogon.C");
