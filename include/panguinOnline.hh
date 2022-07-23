@@ -15,7 +15,6 @@
 #include <vector>
 #include <string>
 #include <map>
-#include <set>
 #include <TString.h>
 #include <TCut.h>
 #include <TTimer.h>
@@ -70,6 +69,7 @@ class OnlineGUI {
   int fVerbosity;
 
 public:
+  using cmdmap_t = std::map<std::string, std::string>;
   explicit OnlineGUI( const OnlineConfig& config );
   explicit OnlineGUI( OnlineConfig&& config );
   void CreateGUI( const TGWindow* p, UInt_t w, UInt_t h );

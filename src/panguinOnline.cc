@@ -369,18 +369,16 @@ void OnlineGUI::DoDraw()
   fCanvas->Clear();
   fCanvas->Divide(nx, ny);
 
-  map<string, string> drawcommand;
+  cmdmap_t drawcommand;
   //keys are "variable", "cut", "drawopt", "title", "treename", "grid", "nostat"
 
   // Draw the histograms.
   for( UInt_t i = 0; i < draw_count; i++ ) {
     fConfig.GetDrawCommand(current_page, i, drawcommand);
     fCanvas->cd(i + 1);
-//    auto* pad = fCanvas->cd(i + 1);
 
-    auto ivar = drawcommand.find("variable");
-    if( ivar != drawcommand.end() ) {
-      const string& cmd = ivar->second;
+    const string& cmd = getMapVal(drawcommand, "variable");
+    if( !cmd.empty() ) {
       if( cmd == "macro" ) {
         MacroDraw(drawcommand);
         // test - joh
@@ -664,22 +662,22 @@ UInt_t OnlineGUI::GetTreeIndexFromName( const TString& name )
   return fRootTree.size() + 1;
 }
 
-void OnlineGUI::MacroDraw( const map<string, string>& command )
+void OnlineGUI::MacroDraw( const cmdmap_t& command )
 {
   // Called by DoDraw(), this will make a call to the defined macro, and
   //  plot it in its own pad.  One plot per macro, please.
 
-  auto imac = command.find("macro");
-  if( imac == command.end() ) {
+  const string& macro = getMapVal(command, "macro");
+  if( macro.empty() ) {
     cout << "macro command doesn't contain a macro to execute" << endl;
     return;
   }
 
   if( doGolden ) fRootFile->cd();
-  gROOT->Macro(imac->second.c_str());
+  gROOT->Macro(macro.c_str());
 }
 
-void OnlineGUI::LoadDraw( const map<string, string>& command )
+void OnlineGUI::LoadDraw( const cmdmap_t& command )
 {
   // Called by DoDraw(), this will load a shared object library
   // and then make a call to the defined macro, and
@@ -688,32 +686,32 @@ void OnlineGUI::LoadDraw( const map<string, string>& command )
   //  TString slib("library");
   //TString smacro("macro");
 
-  auto ilib = command.find("library");
-  auto imac = command.find("macro");
-  if( ilib == command.end() || imac == command.end() ) {
+  const string& lib = getMapVal(command, "library");
+  const string& mac = getMapVal(command, "macro");
+  if( lib.empty() || mac.empty() ) {
     cout << "load command is missing either a shared library or macro command or both" << endl;
     return;
   }
 
   if( doGolden ) fRootFile->cd();
-  gSystem->Load(ilib->second.c_str());
-  gROOT->Macro(imac->second.c_str());
+  gSystem->Load(lib.c_str());
+  gROOT->Macro(mac.c_str());
 
 
 }
 
-void OnlineGUI::LoadLib( const map<string, string>& command )
+void OnlineGUI::LoadLib( const cmdmap_t& command )
 {
   // Called by DoDraw(), this will load a shared object library
 
-  auto ilib = command.find("library");
-  if( ilib == command.end() ) {
+  const string& lib = getMapVal(command, "library");
+  if( lib.empty() ) {
     cout << "load command doesn't contain a shared object library path" << endl;
     return;
   }
 
   if( doGolden ) fRootFile->cd();
-  gSystem->Load(ilib->second.c_str());
+  gSystem->Load(lib.c_str());
 
 
 }
@@ -902,11 +900,10 @@ void OnlineGUI::SaveImage( TObject* o, const map<string, string>& command ) cons
 {
   auto ivar = command.find("variable");
   if( fSaveImages && ivar != command.end() ) {
-    cout << "saving image " << ivar->second << endl;
+//    cout << "saving image " << ivar->second << endl;
     auto* c = new TCanvas("c", "c", gPad->GetWw(), gPad->GetWh());
-    auto iopt = command.find("drawopt");
-    const char* opt = iopt != command.end() ? iopt->second.c_str() : "";
-    o->Draw(opt);
+    const string& opt = getMapVal(command, "drawopt");
+    o->Draw(opt.c_str());
     c->Print(("hydra_" + ivar->second + ".png").c_str());
     delete c;
   }
@@ -1043,7 +1040,7 @@ void OnlineGUI::HistDraw( const map<string, string>& command )
   }
 }
 
-void OnlineGUI::TreeDraw( const map<string, string>& command )
+void OnlineGUI::TreeDraw( const cmdmap_t& command )
 {
   // Called by DoDraw(), this will plot a Tree Variable
 
@@ -1090,8 +1087,7 @@ void OnlineGUI::TreeDraw( const map<string, string>& command )
       cout << "got index from command " << iTree << endl;
   }
 
-  string mopt = getMapVal(command, "drawopt");
-  cout << "drawopt = " << mopt << std::endl;
+  const string& mopt = getMapVal(command, "drawopt");
   if( mopt.find("colz") != string::npos )
     gPad->SetRightMargin(0.15);
   string mtitle = getMapVal(command, "title");
