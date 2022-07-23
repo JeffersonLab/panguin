@@ -45,6 +45,9 @@ int main( int argc, char** argv )
 
   CLI11_PARSE(cli, argc, argv);
 
+  if( saveImages )
+    printonly = true;
+
   if( verbosity <= 0 ) {
     verbosity = 0;
     cout << "Verbosity level set to " << verbosity << endl;
