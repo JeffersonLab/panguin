@@ -32,6 +32,11 @@ OnlineConfig::OnlineConfig( const string& config_file_name )
 
 OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   : confFileName(opts.cfgfile)
+  , fPlotFilePrefix(opts.plotpfx)
+  , fPlotFormat(opts.plotfmt)
+  , fImageFilePrefix(opts.imgpfx)
+  , fImageFormat(opts.imgfmt)
+  , plotsdir(opts.outdir)
   , fFoundCfg(false)
   , fMonitor(false)
   , fVerbosity(opts.verbosity)
@@ -40,7 +45,6 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   , fRunNumber(opts.run)
   , fPrintOnly(opts.printonly)
   , fSaveImages(opts.saveimages)
-  , fPlotFormat(opts.plotfmt)
 {
   // Pick up config file directory/path form environment.
   // A config dir given on the command line has preference.
@@ -76,7 +80,6 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
     fFoundCfg = false;
   } else {
     clog << "GUI Configuration loading from " << trypath << endl;
-    confFileName = std::move(trypath);
     fFoundCfg = true;
   }
 

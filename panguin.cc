@@ -8,6 +8,8 @@
 #include <ctime>
 #include <string>
 
+#define PANGUIN_VERSION "1.0"
+
 using namespace std;
 
 clock_t tStart;
@@ -18,7 +20,11 @@ int main( int argc, char** argv )
   tStart = clock();
   string cfgfile{"default.cfg"};
   string cfgdir;
+  string plotpfx{"summaryPlots"};
   string plotfmt{"pdf"};
+  string imgpfx{"hydra"};
+  string imgfmt{"png"};
+  string outdir;
   int run{0};
   int verbosity{0};
   bool printonly{false};
@@ -37,11 +43,19 @@ int main( int argc, char** argv )
     ->type_name("<level>");
   cli.add_option("-C,--config-dir", cfgdir, "Configuration directory")
     ->type_name("<dir>");
+  cli.add_option("-O,--output-dir", outdir, "Output directory")
+    ->type_name("<dir>");
+  cli.add_flag("-P,-b,--batch", printonly, "No GUI. Save plots to summary file(s)");
+  cli.add_option("--plot-prefix", plotpfx, "Plot file name prefix")
+    ->capture_default_str()->type_name("<fmt>");
   cli.add_option("-F,--plot-format", plotfmt, "Plot format (pdf, png, jpg ...)")
     ->capture_default_str()->type_name("<fmt>");
-  cli.add_flag("-P,,-b,--batch", printonly, "No GUI. Write plots to file");
-  cli.add_flag("-I,--images", saveImages, "Save plots as png images");
-  cli.set_version_flag("-V,--version", "1.0");
+  cli.add_flag("-I,--images", saveImages, "Save individual plots as images (implies -P)");
+  cli.add_option("--image-prefix", imgpfx, "Image file name prefix")
+    ->capture_default_str()->type_name("<fmt>");
+  cli.add_option("--image-format", imgfmt, "Image file format (png, jpg ...)")
+    ->capture_default_str()->type_name("<fmt>");
+  cli.set_version_flag("-V,--version", PANGUIN_VERSION);
 
   CLI11_PARSE(cli, argc, argv);
 
@@ -72,7 +86,8 @@ int main( int argc, char** argv )
 
   TApplication theApp("panguin2", &argc, argv, nullptr, -1);
   online(OnlineConfig::CmdLineOpts{
-    cfgfile, cfgdir, plotfmt, run, verbosity, printonly, saveImages});
+    cfgfile, cfgdir, plotpfx, plotfmt, imgpfx, imgfmt, outdir, run, verbosity,
+    printonly, saveImages});
   theApp.Run();
 
   cout << "Done. Time passed: "

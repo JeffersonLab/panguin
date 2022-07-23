@@ -15,12 +15,17 @@ class OnlineConfig {
   // Class that takes care of the config file
   std::string confFileName;       // config filename
   std::string fConfFilePath;      // Search path for configuration files
-  std::vector<std::vector<std::string>> sConfFile;  // the config file, in memory
-  std::string rootfilename;  //  Just the name
+  std::string rootfilename;       //  Just the name
   std::string goldenrootfilename; // Golden rootfile for comparisons
-  std::string protorootfile; // Prototype for getting the rootfilename
-  std::string guicolor; // User's choice of background color
-  std::string plotsdir; // Where to store sample plots.. automatically stored as .jpg's).
+  std::string protorootfile;      // Prototype for getting the rootfilename
+  std::string guicolor;           // User's choice of background color
+  std::string fPlotFilePrefix;    // File name prefix for saved plots (default: summaryPlots)
+  std::string fPlotFormat;        // File format for saved plots (default: pdf)
+  std::string fImageFilePrefix;   // File name prefix for saved image files (default: hydra)
+  std::string fImageFormat;       // File format for saved image files (default: png)
+  std::string plotsdir;           // Where to save plots
+  // the config file, in memory
+  std::vector<std::vector<std::string>> sConfFile;
   // pageInfo is the vector of the pages containing the sConfFile index
   //   and how many commands issued within that page (title, 1d, etc.)
   std::vector<std::pair<uint_t, uint_t> > pageInfo;
@@ -30,7 +35,6 @@ class OnlineConfig {
   bool fMonitor;
   int fVerbosity;
   int hist2D_nBinsX, hist2D_nBinsY;
-  std::string fPlotFormat;
   int fRunNumber;
   bool fPrintOnly;
   bool fSaveImages;
@@ -42,7 +46,11 @@ public:
   struct CmdLineOpts {
     std::string cfgfile;
     std::string cfgdir;
+    std::string plotpfx;
     std::string plotfmt;
+    std::string imgpfx;
+    std::string imgfmt;
+    std::string outdir;
     int run{0};
     int verbosity{0};
     bool printonly{false};
@@ -63,10 +71,13 @@ public:
     nY = hist2D_nBinsY;
   }
   void SetVerbosity( int ver ) { fVerbosity = ver; }
-  const char *GetPlotFormat() const { return fPlotFormat.c_str(); }
   const char *GetRootFile() const { return rootfilename.c_str(); };
   const std::string& GetGoldenFile() const { return goldenrootfilename; };
   const std::string& GetGuiColor() const { return guicolor; };
+  const std::string& GetPlotFilePrefix() const { return fPlotFilePrefix; }
+  const std::string& GetPlotFormat() const { return fPlotFormat; }
+  const std::string& GetImageFilePrefix() const { return fImageFilePrefix; }
+  const std::string& GetImageFormat() const { return fImageFormat; }
   const std::string& GetPlotsDir() const { return plotsdir; };
   int GetVerbosity() const { return fVerbosity; }
   bool DoPrintOnly() const { return fPrintOnly; }

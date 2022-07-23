@@ -26,8 +26,7 @@
 #include "TEnv.h"
 #include "TRegexp.h"
 #include "TGaxis.h"
-#include <map>
-#include <list>
+#include <sstream>
 #include <utility>
 #include <cassert>
 
@@ -52,6 +51,7 @@ OnlineGUI::OnlineGUI( OnlineConfig&& config )
   , fUpdate{false}
   , fFileAlive{false}
   , fVerbosity{fConfig.GetVerbosity()}
+  , fPrintOnly{fConfig.DoPrintOnly()}
   , fSaveImages{fConfig.DoSaveImages()}
 {
   // Constructor. Make the GUI.
@@ -65,17 +65,15 @@ OnlineGUI::OnlineGUI( OnlineConfig&& config )
     }
   }
 
-  if( fConfig.DoPrintOnly() ) {
-    fPrintOnly = kTRUE;
+  if( fPrintOnly ) {
     PrintPages();
   } else {
-    fPrintOnly = kFALSE;
     CreateGUI(gClient->GetRoot(), 1600, 1200);
   }
 }
 
 OnlineGUI::OnlineGUI( const OnlineConfig& config )
-  : OnlineGUI(OnlineConfig(config)) {}
+  : OnlineGUI(std::move(OnlineConfig(config))) {}
 
 void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
 {
@@ -1230,7 +1228,7 @@ void OnlineGUI::PrintPages()
   if( printFormat.IsNull() ) printFormat = "pdf";
   if( printFormat != "pdf" ) pagePrint = kTRUE;
 
-  TString filename = "summaryPlots";
+  TString filename = fConfig.GetPlotFilePrefix();
   runNumber = fConfig.GetRunNumber();
   if( runNumber != 0 ) {
     filename += "_";
@@ -1255,6 +1253,15 @@ void OnlineGUI::PrintPages()
   }
   //  pagehead += ": ";
 
+  if( !fConfig.GetPlotsDir().empty()
+      && gSystem->AccessPathName(fConfig.GetPlotsDir().c_str()) ) {
+    auto status = gSystem->mkdir(fConfig.GetPlotsDir().c_str(), true);
+    if( status ) {
+      cerr << "ERROR:  Cannot create requested output directory "
+           << fConfig.GetPlotsDir() << endl;
+      gApplication->Terminate();
+    }
+  }
   gStyle->SetPalette(1);
   //gStyle->SetTitleX(0.15);
   //gStyle->SetTitleY(0.9);
