@@ -86,12 +86,13 @@ public:
   void GetRootTree();
   UInt_t GetTreeIndex( TString );
   UInt_t GetTreeIndexFromName( const TString& );
-  void TreeDraw( const std::map<std::string, std::string>& command );
-  void HistDraw( const std::map<std::string, std::string>& command );
-  void MacroDraw( const std::map<std::string, std::string>& command );
-  void LoadDraw( const std::map<std::string, std::string>& command );
-  void LoadLib( const std::map<std::string, std::string>& command );
-  void SaveImage( TObject* o, const std::map<std::string, std::string>& command ) const;
+  void TreeDraw( const cmdmap_t& command );
+  void HistDraw( const cmdmap_t& command );
+  void MacroDraw( const cmdmap_t& command );
+  void LoadDraw( const cmdmap_t& command );
+  void LoadLib( const cmdmap_t& command );
+  void SaveImage( TObject* o, const cmdmap_t& command ) const;
+  void SaveMacroImage( const cmdmap_t& drawcommand, UInt_t ipad );
   void DoDrawClear();
   void TimerUpdate();
   void UpdateCurrentTime();  // update current time
