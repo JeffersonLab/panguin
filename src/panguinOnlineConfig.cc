@@ -13,6 +13,9 @@
 
 using namespace std;
 
+#define ALL(c) (c).begin(), (c).end()
+
+//_____________________________________________________________________________
 // Get directory name part of 'path'
 static string DirnameStr( string path )
 {
@@ -52,6 +55,16 @@ static pair<ifstream, string>
   return make_pair(std::move(infile), std::move(foundpath));
 }
 
+// Append 'dir' to 'path'
+static void AppendToPath( string& path, const string& dir )
+{
+  if( dir.empty() )
+    return;
+  if( !path.empty() )
+    path += ":";
+  path += dir;
+}
+
 // Constructor.  Without an argument, use default config
 OnlineConfig::OnlineConfig()
   : OnlineConfig("default.cfg") {}
@@ -81,11 +94,8 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   // A config dir or path given on the command line takes preference.
   string cfgpath = opts.cfgdir;
   const char* env_cfgdir = getenv("PANGUIN_CONFIG_PATH");
-  if( env_cfgdir ) {
-    if( !cfgpath.empty() )
-      cfgpath += ":";
-    cfgpath += env_cfgdir;
-  }
+  if( env_cfgdir )
+    AppendToPath(cfgpath, env_cfgdir);
   if( fVerbosity > 0 )
     cout << "config file path = " << cfgpath << endl;
   fConfFilePath = cfgpath;
@@ -358,7 +368,46 @@ bool OnlineConfig::ParseConfig()
       }
       fPlotFormat = sConfFile[i][1];
     }
-
+    if( sConfFile[i][0] == "rootfilespath" ) {
+      if( sConfFile[i].size() != 2 ) {
+        cerr << "WARNING: rootfilespath command does not have the "
+             << "correct number of arguments (needs 1)"
+             << endl;
+        continue;
+      }
+      if( !fRootFilesPath.empty() ) {
+        cerr << "WARNING: duplicate rootfilespath's directoves. "
+             << " Will only use the first one."
+             << endl;
+        continue;
+      }
+      fRootFilesPath = sConfFile[i][1];
+      ExpandFileName(fRootFilesPath);
+    }
+    if( sConfFile[i][0] == "daqConfigs" ) {
+      if( sConfFile[i].size() < 2 ) {
+        cerr << "WARNING: Missing arguments for daqConfigs command."
+             << endl;
+        continue;
+      }
+      daqConfigs.assign(sConfFile[i].begin() + 1, sConfFile[i].end());
+    }
+    if( sConfFile[i][0] == "rootFileExts" ) {
+      if( sConfFile[i].size() < 2 ) {
+        cerr << "WARNING: Missing arguments for rootFileExts command."
+             << endl;
+        continue;
+      }
+      fFileExts.assign(sConfFile[i].begin() + 1, sConfFile[i].end());
+    }
+    if( sConfFile[i][0] == "watchFileExts" ) {
+      if( sConfFile[i].size() < 2 ) {
+        cerr << "WARNING: Missing arguments for monitorFileExts command."
+             << endl;
+        continue;
+      }
+      fWatchExts.assign(sConfFile[i].begin() + 1, sConfFile[i].end());
+    }
   }
 
   if( fVerbosity >= 3 ) {
@@ -380,6 +429,14 @@ bool OnlineConfig::ParseConfig()
          << endl
          << goldenrootfilename << endl;
   }
+
+  // Set fallback defaults (TODO consider removing)
+  if( daqConfigs.empty() )
+    daqConfigs = {"e1209019_trigtest", "gmn", "bbgem_replayed"};
+  if( fFileExts.empty() )
+    fFileExts = {".root", ".0.root"};
+  if( fWatchExts.empty() )
+    fWatchExts = {".root", ".adaq1"};
 
   return true;
 
@@ -700,76 +757,83 @@ void OnlineConfig::GetDrawCommand( uint_t page, uint_t nCommand, std::map<string
   }
 }
 
+//_____________________________________________________________________________
+// Match 'fullname' against pattern built from 'daqConfig' and 'runnumber'
+bool OnlineConfig::MatchFilename(
+  const string& fullname, const string& daqConfig, int runnumber ) const
+{
+  ostringstream partialname;
+  partialname << daqConfig << "_" << runnumber;
+  const auto& suffixes = fMonitor ? fWatchExts : fFileExts;
+  return any_of(ALL(suffixes), [&]( const string& suf ) {
+    if( fVerbosity >= 1 && suf.find(".0.") != string::npos )
+      cout << __PRETTY_FUNCTION__ << "\t" << __LINE__ << endl
+           << "Looking for a segmented output (segment 0 only)" << endl;
+    return fullname.find(partialname.str() + suf) != string::npos;
+  });
+}
+
+//_____________________________________________________________________________
+// Override the ROOT file defined in the cfg file. This is called if the
+// user specifies a run number on the command line.
 void OnlineConfig::OverrideRootFile( int runnumber )
 {
-  // Override the ROOT file defined in the cfg file If
-  // protorootfile is used, construct filename using it, otherwise
-  // uses a helper macro "GetRootFileName.C(uint_t runnumber)
   cout << "Root file defined before was: " << rootfilename << endl;
   if( !protorootfile.empty() ) {
-    //char runnostr[10];
-    //sprintf(runnostr,"%04i",runnumber);
+    // If protorootfile is used, construct filename using it, substituting the
+    // run number provided.
 
     ostringstream runnostr;
     runnostr << runnumber;
     protorootfile = ReplaceAll(protorootfile, "XXXXX", runnostr.str());
     rootfilename = protorootfile;
-    // string temp = rootfilename(rootfilename.Last('_')+1,rootfilename.Length());
-    // fRunNumber = atoi(temp(0,temp.Last('.')).Data());
 
-    fRunNumber = runnumber;
     cout << "Protorootfile set, use it: " << rootfilename << endl;
   } else {
-    string fnmRoot = "/adaq1/data1/sbs";
-    if( getenv("ROOTFILES") )
-      fnmRoot = getenv("ROOTFILES");
-    else
-      cout << "ROOTFILES env variable was not found going with default: " << fnmRoot << endl;
+    // If there's no protorootfile in the configuration, find a root file with
+    // a matching run number and certain file name patterns in fRootFilesDir
+    // (from config), $ROOTFILES, or ./rootfiles.
+    // This is essentially a built-in logic for trying various protorootfiles.
+    string fnmRootPath;
+    AppendToPath(fnmRootPath, fRootFilesPath);
+    auto* envar = getenv("ROOTFILES");
+    if( envar )
+      AppendToPath(fnmRootPath, envar);
+    AppendToPath(fnmRootPath, "./rootfiles");
 
-    cout << " Looking for file with runnumber " << runnumber << " in " << fnmRoot << endl;
+    cout << " Looking for ROOT file with runnumber " << runnumber
+         << " in " << fnmRootPath << endl;
 
-    DIR* dirSearch;
-    struct dirent* entSearch;
-    const string daqConfigs[3] = {"e1209019_trigtest", "gmn", "bbgem_replayed"};
     bool found = false;
-    if( (dirSearch = opendir(fnmRoot.c_str())) != nullptr ) {
-      while( !found && (entSearch = readdir(dirSearch)) != nullptr ) {
-        string fullname = entSearch->d_name;
-        ostringstream partialname;
-        for( const auto& daqConfig: daqConfigs ) {
-          partialname << daqConfig << "_" << runnumber << ".root";
-          if( fullname.find(partialname.str()) != string::npos ) {
-            found = true;
-          } else {
-            partialname.clear();
-            if( fMonitor ) {
-              partialname << daqConfig << "_" << runnumber << ".adaq1";
-              found = fullname.find(partialname.str()) != string::npos;
-            } else {
-              partialname << daqConfig << "_" << runnumber << ".0.root";
-              if( fVerbosity >= 1 )
-                cout << __PRETTY_FUNCTION__ << "\t" << __LINE__ << endl
-                     << "Looking for a segmented output. Looking at segment 000 only" << endl;
-              found = fullname.find(partialname.str()) != string::npos;
+    istringstream istr(fnmRootPath);
+    string fnmRoot;
+    while( !found && getline(istr, fnmRoot, ':') ) {
+      DIR* dirSearch;
+      struct dirent* entSearch;
+      if( (dirSearch = opendir(fnmRoot.c_str())) ) {
+        while( !found && (entSearch = readdir(dirSearch)) ) {
+          string fullname = entSearch->d_name;
+          if( fullname == "." || fullname == ".." ) continue;
+          for( const auto& daqConfig: daqConfigs ) {
+            found = MatchFilename(fullname, daqConfig, runnumber);
+            if( found ) {
+              rootfilename = fnmRoot + "/"; rootfilename += fullname;
+              break;
             }
           }
-          if( found ) {
-            rootfilename += fnmRoot;
-            rootfilename += "/";
-            rootfilename += fullname;
-            break;
-          }
         }
+        closedir(dirSearch);
       }
-      closedir(dirSearch);
     }
-
     if( found ) {
       cout << "\t found file " << rootfilename << endl;
-      fRunNumber = runnumber;
     } else {
-      cout << "double check your configurations and files. Quitting" << endl;
+      cout << "No ROOT file found. Double check your configurations and files."
+           << "Quitting" << endl;
       exit(1);
     }
   }
+  fRunNumber = runnumber;
 }
+
+//_____________________________________________________________________________

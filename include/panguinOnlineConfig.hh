@@ -15,6 +15,7 @@ class OnlineConfig {
   std::string confFileName;       // config filename
   std::string fConfFileDir;       // Directory where config file found
   std::string fConfFilePath;      // Search path for configuration files
+  std::string fRootFilesPath;     // Search path for ROOT files
   std::string rootfilename;       //  Just the name
   std::string goldenrootfilename; // Golden rootfile for comparisons
   std::string protorootfile;      // Prototype for getting the rootfilename
@@ -29,6 +30,9 @@ class OnlineConfig {
   // pageInfo is the vector of the pages containing the sConfFile index
   //   and how many commands issued within that page (title, 1d, etc.)
   std::vector<std::pair<uint_t, uint_t> > pageInfo;
+  std::vector<std::string> daqConfigs; // Prefixes for ROOT file names
+  std::vector<std::string> fFileExts;  // Suffixes for ROOT file names
+  std::vector<std::string> fWatchExts; // Suffixes for files to watch
   std::vector<strstr_t> cutList;
   std::vector<uint_t> GetDrawIndex( uint_t );
   bool fFoundCfg;
@@ -42,6 +46,8 @@ class OnlineConfig {
   int LoadFile( std::ifstream& infile, const std::string& filename );
   int CheckLoadIncludeFile( const std::string& sline,
                             const std::vector<std::string>& strvect );
+  bool MatchFilename( const std::string& fullname,
+                      const std::string& daqConfig, int runnumber ) const;
 
 public:
   struct CmdLineOpts {
