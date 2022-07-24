@@ -283,6 +283,7 @@ bool OnlineConfig::ParseConfig()
         continue;
       }
       rootfilename = sConfFile[i][1];
+      ExpandFileName(rootfilename);
       fRunNumber = ExtractRunNumber(sConfFile[i][1]);
     }
     if( sConfFile[i][0] == "goldenrootfile" ) {
@@ -299,6 +300,7 @@ bool OnlineConfig::ParseConfig()
         continue;
       }
       goldenrootfilename = sConfFile[i][1];
+      ExpandFileName(goldenrootfilename);
     }
     if( sConfFile[i][0] == "protorootfile" ) {
       if( sConfFile[i].size() != 2 ) {
@@ -314,6 +316,7 @@ bool OnlineConfig::ParseConfig()
         continue;
       }
       protorootfile = sConfFile[i][1];
+      ExpandFileName(protorootfile);
     }
     if( sConfFile[i][0] == "guicolor" ) {
       if( sConfFile[i].size() != 2 ) {
@@ -344,6 +347,7 @@ bool OnlineConfig::ParseConfig()
         continue;
       }
       plotsdir = sConfFile[i][1];
+      ExpandFileName(plotsdir);
     }
     if( sConfFile[i][0] == "plotFormat" ) {
       if( sConfFile[i].size() != 2 ) {
