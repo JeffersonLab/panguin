@@ -83,8 +83,8 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
   //  unless we're watching a file.
   fRootFile = new TFile(fConfig.GetRootFile(), "READ");
   if( !fRootFile->IsOpen() ) {
-    cout << "ERROR:  rootfile: " << fConfig.GetRootFile()
-         << " does not exist"
+    cerr << "ERROR:  rootfile: " << fConfig.GetRootFile()
+         << " cannot be opened"
          << endl;
     if( fConfig.IsMonitor() ) {
       cout << "Will wait... hopefully.." << endl;
@@ -109,8 +109,8 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
   if( !goldenfilename.IsNull() ) {
     fGoldenFile = new TFile(goldenfilename, "READ");
     if( !fGoldenFile->IsOpen() ) {
-      cout << "ERROR: goldenrootfile: " << goldenfilename
-           << " does not exist.  Oh well, no comparison plots."
+      cerr << "ERROR: goldenrootfile: " << goldenfilename
+           << " cannot be opened.  Oh well, no comparison plots."
            << endl;
       doGolden = kFALSE;
       fGoldenFile = nullptr;
@@ -1212,8 +1212,8 @@ void OnlineGUI::PrintPages()
   //  unless we're watching a file.
   fRootFile = new TFile(fConfig.GetRootFile(), "READ");
   if( !fRootFile->IsOpen() ) {
-    cout << "ERROR:  rootfile: " << fConfig.GetRootFile()
-         << " does not exist"
+    cerr << "ERROR:  rootfile: " << fConfig.GetRootFile()
+         << " cannot be opened"
          << endl;
     gApplication->Terminate();
   } else {
@@ -1231,8 +1231,8 @@ void OnlineGUI::PrintPages()
   if( !goldenfilename.IsNull() ) {
     fGoldenFile = new TFile(goldenfilename, "READ");
     if( !fGoldenFile->IsOpen() ) {
-      cout << "ERROR: goldenrootfile: " << goldenfilename
-           << " does not exist.  Oh well, no comparison plots."
+      cerr << "ERROR: goldenrootfile: " << goldenfilename
+           << " cannot be opened.  Oh well, no comparison plots."
            << endl;
       doGolden = kFALSE;
       fGoldenFile = nullptr;

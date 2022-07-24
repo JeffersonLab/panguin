@@ -1,14 +1,19 @@
 #include "panguinOnlineConfig.hh"
 #include <string>
-#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <utility>
 #include <dirent.h>
 #include <cmath>
+#include <cassert>
+#include <stdexcept>
+#include <iomanip>    // quoted
+#include <cctype>     // isalnum
+#include <algorithm>  // find_if
 
 using namespace std;
 
+// Get directory name part of 'path'
 static string DirnameStr( string path )
 {
   auto pos = path.rfind('/');
@@ -21,12 +26,38 @@ static string DirnameStr( string path )
   return path;
 }
 
+// Try to open 'filename'. If 'filename' is a relative path (does not start
+// with '/', try to open it in the current directory and, if not found, in
+// any of the directories given in 'path'.
+// Returns a filestream and path string where the file was found. Test the
+// filestream to determine whether the file was successfully opened.
+static pair<ifstream, string>
+  OpenInPath( const string& filename, const string& path )
+{
+  string trypath, foundpath;
+  ifstream infile(filename);
+  if( !infile && filename[0] != '/') {
+    istringstream istr(path);
+    while( getline(istr, trypath, ':') ) {
+      foundpath = trypath;
+      trypath += "/" + filename;
+      infile.clear();
+      infile.open(trypath);
+      if( infile )
+        break;
+    }
+  } else {
+    foundpath = DirnameStr(filename);
+  }
+  return make_pair(std::move(infile), std::move(foundpath));
+}
+
 // Constructor.  Without an argument, use default config
 OnlineConfig::OnlineConfig()
   : OnlineConfig("default.cfg") {}
 
 // Constructor.  Takes the config file name as the only argument.
-//  Loads up the configuration file, and stores its contents for access.
+// Loads up the configuration file, and stores its contents for access.
 OnlineConfig::OnlineConfig( const string& config_file_name )
   : OnlineConfig(CmdLineOpts{config_file_name}) {}
 
@@ -47,50 +78,98 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   , fSaveImages(opts.saveimages)
 {
   // Pick up config file directory/path form environment.
-  // A config dir given on the command line has preference.
+  // A config dir or path given on the command line takes preference.
   string cfgpath = opts.cfgdir;
-  if( !cfgpath.empty() )
-    cfgpath += ":";
-  cfgpath += ".";
-  const char* env_cfgdir = getenv("PANGUIN_CONFIG_DIR");
+  const char* env_cfgdir = getenv("PANGUIN_CONFIG_PATH");
   if( env_cfgdir ) {
-    cfgpath += string(":") + env_cfgdir;
+    if( !cfgpath.empty() )
+      cfgpath += ":";
+    cfgpath += env_cfgdir;
   }
   if( fVerbosity > 0 )
     cout << "config file path = " << cfgpath << endl;
+  fConfFilePath = cfgpath;
 
-  string trypath(confFileName);
-  ifstream infile(trypath);
+  ifstream infile;
+  std::tie(infile, fConfFileDir) = OpenInPath(confFileName, cfgpath);
+
   if( !infile ) {
-    istringstream istr(cfgpath);
-    while( getline(istr, trypath, ':') ) {
-      fConfFilePath = trypath;
-      trypath += "/" + confFileName;
-      infile.clear();
-      infile.open(trypath);
-      if( infile )
-        break;
-    }
-  } else {
-    fConfFilePath = DirnameStr(trypath);
-  }
-  if( !infile ) {
-    cerr << "OnlineConfig() ERROR: no file " << confFileName << endl;
+    cerr << "OnlineConfig() ERROR: cannot find " << confFileName << endl;
     cerr << "You need a configuration to run.  Ask an expert." << endl;
     fFoundCfg = false;
-  } else {
-    clog << "GUI Configuration loading from " << trypath << endl;
-    fFoundCfg = true;
+    return;
   }
+  fFoundCfg = true;
+  string fullpath = fConfFileDir + "/" + confFileName;
 
-  if( fFoundCfg ) {
-    LoadFile(infile);
-    infile.close();
+  cout << "GUI Configuration loading from " << fullpath << endl;
+  try {
+    auto ret = LoadFile(infile, fullpath);
+    if( ret != 0 )
+      throw std::runtime_error(
+        "Error loading configuration file \"" + fullpath + "\"");
+  } catch( const std::runtime_error& e ) {
+    cerr << e.what() << endl;
+    fFoundCfg = false;
   }
-
 }
 
-int OnlineConfig::LoadFile( std::ifstream& infile )
+//_____________________________________________________________________________
+// Expand specials and environment variables
+static void ExpandFileName( string& str )
+{
+  if( str.empty() )
+    return;
+  if( str[0] == '~' ) {
+    auto* home = getenv("HOME");
+    if( home )
+      str.replace(0, 1, home);
+  }
+  if( str.size() < 2 )
+    return;
+  size_t pos;
+  while( (pos = str.find('$')) != string::npos ) {
+    auto iend = find_if(str.begin() + pos + 1, str.end(), []( int c ) {
+      return (!isalnum(c) && c != '_');
+    });
+    auto len = iend - str.begin() - pos - 1;
+    auto envvar = str.substr(pos + 1, len);
+    auto* envval = getenv(envvar.c_str());
+    if( envval )
+      str.replace(pos, len + 1, envval);
+  }
+}
+
+//_____________________________________________________________________________
+int OnlineConfig::CheckLoadIncludeFile(
+  const string& sline, const std::vector<std::string>& strvect )
+{
+  if( strvect[0] == "include" ) {
+    if( strvect.size() != 2 || strvect[1].empty() ) {
+      cerr << "Too " << (strvect.size() == 1 ? "few" : "many")
+           << "arguments for include statement "
+           << "(expect 1 = file name). Skipping line: " << endl
+           << "--> " << std::quoted(sline) << endl;
+      return 0;
+    }
+    string fname = strvect[1], incdir;
+    ExpandFileName( fname );
+    ifstream ifs;
+    std::tie(ifs, incdir) = OpenInPath(fname, fConfFilePath);
+    if( !ifs )
+      throw std::runtime_error("Error opening include file \"" + fname + "\"");
+    if( fVerbosity >= 1 )
+      cout << "Loading include file " << std::quoted(fname) << endl;
+    auto ret = LoadFile(ifs, fname);
+    if( ret != 0 )
+      throw std::runtime_error("Error loading include file \"" + fname + "\"");
+    return 1;
+  }
+  return 0;
+}
+
+//_____________________________________________________________________________
+int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename )
 {
   // Reads in the Config File, and makes the proper calls to put
   //  the information contained into memory.
@@ -102,14 +181,15 @@ int OnlineConfig::LoadFile( std::ifstream& infile )
   vector<string> strvect;
   string sinput, sline;
   while( getline(infile, sline) ) {
-    if( sline.find(comment) != string::npos ) continue;
+    if( sline.empty() || sline.find(comment) != string::npos ) continue;
     istringstream istr(sline);
     string field;
+    strvect.clear();
     while( istr >> field )
       strvect.push_back(std::move(field));
-    if( !strvect.empty() )
-      sConfFile.push_back(std::move(strvect));
-    strvect.clear();
+    if( CheckLoadIncludeFile(sline, strvect) )
+      continue;
+    sConfFile.push_back(std::move(strvect));
   }
 
   if( fVerbosity >= 1 ) {
@@ -122,8 +202,8 @@ int OnlineConfig::LoadFile( std::ifstream& infile )
     }
   }
 
-  cout << "     " << sConfFile.size() << " lines read from "
-       << confFileName << endl;
+  cout << setw(6) << sConfFile.size() << " lines read from "
+       << filename << endl;
 
   return 0;
 }
@@ -315,7 +395,7 @@ const string& OnlineConfig::GetDefinedCut( const string& ident )
   return nullstr;
 }
 
- vector<string> OnlineConfig::GetCutIdent()
+vector<string> OnlineConfig::GetCutIdent()
 {
   // Returns a vector of the cut identifiers, specified in config
   vector<string> out;

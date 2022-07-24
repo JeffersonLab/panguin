@@ -4,7 +4,6 @@
 #include <utility>
 #include <fstream>
 #include <vector>
-#include <set>
 #include <map>
 #include <string>
 
@@ -14,6 +13,7 @@ using strstr_t = std::pair<std::string, std::string>;
 class OnlineConfig {
   // Class that takes care of the config file
   std::string confFileName;       // config filename
+  std::string fConfFileDir;       // Directory where config file found
   std::string fConfFilePath;      // Search path for configuration files
   std::string rootfilename;       //  Just the name
   std::string goldenrootfilename; // Golden rootfile for comparisons
@@ -39,8 +39,9 @@ class OnlineConfig {
   bool fPrintOnly;
   bool fSaveImages;
 
-
-  int LoadFile( std::ifstream& infile );
+  int LoadFile( std::ifstream& infile, const std::string& filename );
+  int CheckLoadIncludeFile( const std::string& sline,
+                            const std::vector<std::string>& strvect );
 
 public:
   struct CmdLineOpts {
@@ -63,7 +64,7 @@ public:
   bool ParseConfig();
   int GetRunNumber() const { return fRunNumber; }
 
-  const std::string& GetGuiDirectory() const { return fConfFilePath; }
+  const std::string& GetGuiDirectory() const { return fConfFileDir; }
   const std::string& GetConfFileName() const { return confFileName; }
   void Get2DnumberBins( int& nX, int& nY ) const
   {
@@ -71,8 +72,8 @@ public:
     nY = hist2D_nBinsY;
   }
   void SetVerbosity( int ver ) { fVerbosity = ver; }
-  const char *GetRootFile() const { return rootfilename.c_str(); };
-  const std::string& GetGoldenFile() const { return goldenrootfilename; };
+  const char* GetRootFile() const { return rootfilename.c_str(); };
+  const char* GetGoldenFile() const { return goldenrootfilename.c_str(); };
   const std::string& GetGuiColor() const { return guicolor; };
   const std::string& GetPlotFilePrefix() const { return fPlotFilePrefix; }
   const std::string& GetPlotFormat() const { return fPlotFormat; }
