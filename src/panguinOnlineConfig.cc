@@ -29,6 +29,7 @@ static string DirnameStr( string path )
   return path;
 }
 
+//_____________________________________________________________________________
 // Try to open 'filename'. If 'filename' is a relative path (does not start
 // with '/', try to open it in the current directory and, if not found, in
 // any of the directories given in 'path'.
@@ -55,6 +56,7 @@ static pair<ifstream, string>
   return make_pair(std::move(infile), std::move(foundpath));
 }
 
+//_____________________________________________________________________________
 // Append 'dir' to 'path'
 static void AppendToPath( string& path, const string& dir )
 {
@@ -65,15 +67,67 @@ static void AppendToPath( string& path, const string& dir )
   path += dir;
 }
 
+//_____________________________________________________________________________
+// Expand specials and environment variables
+static void ExpandFileName( string& str )
+{
+  if( str.empty() )
+    return;
+  if( str[0] == '~' ) {
+    auto* home = getenv("HOME");
+    if( home )
+      str.replace(0, 1, home);
+  }
+  if( str.size() < 2 )
+    return;
+  size_t pos;
+  while( (pos = str.find('$')) != string::npos ) {
+    auto iend = find_if(str.begin() + pos + 1, str.end(), []( int c ) {
+      return (!isalnum(c) && c != '_');
+    });
+    auto len = iend - str.begin() - pos - 1;
+    auto envvar = str.substr(pos + 1, len);
+    auto* envval = getenv(envvar.c_str());
+    if( envval )
+      str.replace(pos, len + 1, envval);
+  }
+}
+
+//_____________________________________________________________________________
+// Extract run number from a file name structured as
+//   experiment_optionaltext_runnumber.dat
+static int ExtractRunNumber( const string& filename )
+{
+  string temp = filename.substr(filename.rfind('_') + 1);
+  return stoi(temp.substr(0, temp.rfind('.')));
+}
+
+//_____________________________________________________________________________
+// Replace all occurrences in 'str' of 'ostr' with 'nstr'
+static string ReplaceAll( string str, const string& ostr, const string& nstr )
+{
+  size_t pos = 0, ol = ostr.size(), nl = nstr.size();
+  while( (pos += nl) || pos == 0 ) {
+    pos = str.find(ostr, pos);
+    if( pos == string::npos )
+      break;
+    str.replace(pos, ol, nstr);
+  }
+  return str;
+}
+
+//_____________________________________________________________________________
 // Constructor.  Without an argument, use default config
 OnlineConfig::OnlineConfig()
   : OnlineConfig("default.cfg") {}
 
+//_____________________________________________________________________________
 // Constructor.  Takes the config file name as the only argument.
 // Loads up the configuration file, and stores its contents for access.
 OnlineConfig::OnlineConfig( const string& config_file_name )
   : OnlineConfig(CmdLineOpts{config_file_name}) {}
 
+//_____________________________________________________________________________
 OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   : confFileName(opts.cfgfile)
   , fPlotFilePrefix(opts.plotpfx)
@@ -125,32 +179,6 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
 }
 
 //_____________________________________________________________________________
-// Expand specials and environment variables
-static void ExpandFileName( string& str )
-{
-  if( str.empty() )
-    return;
-  if( str[0] == '~' ) {
-    auto* home = getenv("HOME");
-    if( home )
-      str.replace(0, 1, home);
-  }
-  if( str.size() < 2 )
-    return;
-  size_t pos;
-  while( (pos = str.find('$')) != string::npos ) {
-    auto iend = find_if(str.begin() + pos + 1, str.end(), []( int c ) {
-      return (!isalnum(c) && c != '_');
-    });
-    auto len = iend - str.begin() - pos - 1;
-    auto envvar = str.substr(pos + 1, len);
-    auto* envval = getenv(envvar.c_str());
-    if( envval )
-      str.replace(pos, len + 1, envval);
-  }
-}
-
-//_____________________________________________________________________________
 int OnlineConfig::CheckLoadIncludeFile(
   const string& sline, const std::vector<std::string>& strvect )
 {
@@ -179,11 +207,10 @@ int OnlineConfig::CheckLoadIncludeFile(
 }
 
 //_____________________________________________________________________________
+// Reads in the Config File, and makes the proper calls to put
+//  the information contained into memory.
 int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename )
 {
-  // Reads in the Config File, and makes the proper calls to put
-  //  the information contained into memory.
-
   if( !infile )
     return 1;
 
@@ -218,34 +245,13 @@ int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename )
   return 0;
 }
 
-static int ExtractRunNumber( const string& filename )
-{
-  // Extract run number from a file name structured as
-  //   experiment_optionaltext_runnumber.dat
-  string temp = filename.substr(filename.rfind('_') + 1);
-  return stoi(temp.substr(0, temp.rfind('.')));
-}
-
-static string ReplaceAll( string str, const string& ostr, const string& nstr )
-{
-  size_t pos = 0, ol = ostr.size(), nl = nstr.size();
-  while( (pos += nl) || pos == 0 ) {
-    pos = str.find(ostr, pos);
-    if( pos == string::npos )
-      break;
-    str.replace(pos, ol, nstr);
-  }
-  return str;
-}
-
+//_____________________________________________________________________________
+//  Goes through each line of the config [must have been LoadFile()'d]
+//   and interprets.
 bool OnlineConfig::ParseConfig()
 {
-  //  Goes through each line of the config [must have been LoadFile()'d]
-  //   and interprets.
-
-  if( !fFoundCfg ) {
+  if( !fFoundCfg )
     return false;
-  }
 
   uint_t command_cnt = 0;
   // If statement for each high level command (cut, newpage, etc)
@@ -442,10 +448,10 @@ bool OnlineConfig::ParseConfig()
 
 }
 
+//_____________________________________________________________________________
+// Returns the defined cut, according to the identifier
 const string& OnlineConfig::GetDefinedCut( const string& ident )
 {
-  // Returns the defined cut, according to the identifier
-
   static const string nullstr{};
 
   for( const auto& cut: cutList ) {
@@ -456,9 +462,10 @@ const string& OnlineConfig::GetDefinedCut( const string& ident )
   return nullstr;
 }
 
+//_____________________________________________________________________________
+// Returns a vector of the cut identifiers, specified in config
 vector<string> OnlineConfig::GetCutIdent()
 {
-  // Returns a vector of the cut identifiers, specified in config
   vector<string> out;
 
   for( const auto& cut: cutList ) {
@@ -467,10 +474,10 @@ vector<string> OnlineConfig::GetCutIdent()
   return out;
 }
 
+//_____________________________________________________________________________
+// Check if last word on line is "logy"
 bool OnlineConfig::IsLogy( uint_t page )
 {
-  // Check if last word on line is "logy"
-
   uint_t page_index = pageInfo[page].first;
   size_t word_index = sConfFile[page_index].size() - 1;
   if( word_index <= 0 ) return false;
@@ -489,12 +496,12 @@ bool OnlineConfig::IsLogy( uint_t page )
   return false;
 }
 
+//_____________________________________________________________________________
+// If defined in the config, will return those dimensions
+//  for the indicated page.  Otherwise, will return the
+//  calculated dimensions required to fit all histograms.
 pair<uint_t, uint_t> OnlineConfig::GetPageDim( uint_t page )
 {
-  // If defined in the config, will return those dimensions
-  //  for the indicated page.  Otherwise, will return the
-  //  calculated dimensions required to fit all histograms.
-
   pair<uint_t, uint_t> outDim;
 
   // This is the page index in sConfFile.
@@ -528,11 +535,11 @@ pair<uint_t, uint_t> OnlineConfig::GetPageDim( uint_t page )
   return outDim;
 }
 
+//_____________________________________________________________________________
+// Returns the title of the page.
+//  if it is not defined in the config, then return "Page #"
 string OnlineConfig::GetPageTitle( uint_t page )
 {
-  // Returns the title of the page.
-  //  if it is not defined in the config, then return "Page #"
-
   string title;
   uint_t iter_command = pageInfo[page].first + 1;
 
@@ -553,11 +560,11 @@ string OnlineConfig::GetPageTitle( uint_t page )
   return title;
 }
 
+//_____________________________________________________________________________
+// Returns an index of where to find the draw commands within a page
+//  within the sConfFile vector
 vector<uint_t> OnlineConfig::GetDrawIndex( uint_t page )
 {
-  // Returns an index of where to find the draw commands within a page
-  //  within the sConfFile vector
-
   vector<uint_t> index;
   uint_t iter_command = pageInfo[page].first + 1;
 
@@ -570,9 +577,10 @@ vector<uint_t> OnlineConfig::GetDrawIndex( uint_t page )
   return index;
 }
 
+//_____________________________________________________________________________
+// Returns the number of histograms that have been requested for this page
 uint_t OnlineConfig::GetDrawCount( uint_t page )
 {
-  // Returns the number of histograms that have been request for this page
   uint_t draw_count = 0;
 
   for( uint_t i = 0; i < pageInfo[page].second; i++ ) {
@@ -580,26 +588,27 @@ uint_t OnlineConfig::GetDrawCount( uint_t page )
   }
 
   return draw_count;
-
 }
 
-void OnlineConfig::GetDrawCommand( uint_t page, uint_t nCommand, std::map<string, string>& out_command )
+//_____________________________________________________________________________
+// Returns the vector of strings pertaining to a specific page, and
+//   draw command from the config.
+// Return map<string,string> in out_command:
+// Following options are implemented:
+//  1. "-drawopt" --> set draw options for histograms and tree variables
+//  2. "-title" --> set title, enclose in double quotes
+//  3. "-tree" --> set tree name
+//  4. "-grid" --> set "grid" option
+//  5. "-logx, -logy, -logz" --> draw with log x,y,z axis
+//  6. "-nostat" --> don't show stats box
+//  7. "-noshowgolden" --> don't show "golden" histogram even if goldenrootfile is defined
+//  8. any option not preceded by these indicators is assumed to be a cut or macro expression:
+// what options do we want?
+//  all options on one line. First argument assumed to be histogram or tree name (or "macro")
+//
+void OnlineConfig::GetDrawCommand(
+  uint_t page, uint_t nCommand, std::map<string, string>& out_command )
 {
-  // Returns the vector of strings pertaining to a specific page, and
-  //   draw command from the config.
-  // Return map<string,string> in out_command:
-  //Following options are implemented:
-  // 1. "-drawopt" --> set draw options for histograms and tree variables
-  // 2. "-title" --> set title, enclose in double quotes
-  // 3. "-tree" --> set tree name
-  // 4. "-grid" --> set "grid" option
-  // 5. "-logx, -logy, -logz" --> draw with log x,y,z axis
-  // 6. "-nostat" --> don't show stats box
-  // 7. "-noshowgolden" --> don't show "golden" histogram even if goldenrootfile is defined
-  // 8. any option not preceded by these indicators is assumed to be a cut or macro expression:
-  //what options do we want?
-  // all options on one line. First argument assumed to be histogram or tree name (or "macro")
-
   out_command.clear();
 
   //vector <string> out_command(6);
@@ -774,7 +783,7 @@ bool OnlineConfig::MatchFilename(
 }
 
 //_____________________________________________________________________________
-// Override the ROOT file defined in the cfg file. This is called if the
+// Override the ROOT file defined in the cfg file. This is called when the
 // user specifies a run number on the command line.
 void OnlineConfig::OverrideRootFile( int runnumber )
 {
@@ -789,7 +798,9 @@ void OnlineConfig::OverrideRootFile( int runnumber )
     rootfilename = protorootfile;
 
     cout << "Protorootfile set, use it: " << rootfilename << endl;
-  } else {
+  }
+
+  else {
     // If there's no protorootfile in the configuration, find a root file with
     // a matching run number and certain file name patterns in fRootFilesDir
     // (from config), $ROOTFILES, or ./rootfiles.
@@ -833,6 +844,7 @@ void OnlineConfig::OverrideRootFile( int runnumber )
       exit(1);
     }
   }
+
   fRunNumber = runnumber;
 }
 
