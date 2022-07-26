@@ -7,8 +7,15 @@
 #include <map>
 #include <string>
 
+std::string DirnameStr( std::string path );
+std::string BasenameStr( std::string path );
+
 using uint_t = unsigned int;
 using strstr_t = std::pair<std::string, std::string>;
+
+std::string ReplaceAll(
+  std::string str, const std::string& ostr, const std::string& nstr );
+std::string SubstituteRunNumber( std::string str, int runnumber );
 
 class OnlineConfig {
   // Class that takes care of the config file
@@ -18,21 +25,20 @@ class OnlineConfig {
   std::string fRootFilesPath;     // Search path for ROOT files
   std::string rootfilename;       //  Just the name
   std::string goldenrootfilename; // Golden rootfile for comparisons
-  std::string protorootfile;      // Prototype for getting the rootfilename
   std::string guicolor;           // User's choice of background color
-  std::string fPlotFilePrefix;    // File name prefix for saved plots (default: summaryPlots)
+  std::string fProtoPlotFile;
+  std::string fProtoPlotPageFile;
+  std::string fProtoImageFile;
+  std::string fProtoMacroImageFile;
   std::string fPlotFormat;        // File format for saved plots (default: pdf)
-  std::string fImageFilePrefix;   // File name prefix for saved image files (default: hydra)
   std::string fImageFormat;       // File format for saved image files (default: png)
   std::string plotsdir;           // Where to save plots
   // the config file, in memory
   std::vector<std::vector<std::string>> sConfFile;
+  std::vector<std::string> fProtoRootFiles; // Candidate ROOT file names
   // pageInfo is the vector of the pages containing the sConfFile index
   //   and how many commands issued within that page (title, 1d, etc.)
   std::vector<std::pair<uint_t, uint_t> > pageInfo;
-  std::vector<std::string> daqConfigs; // Prefixes for ROOT file names
-  std::vector<std::string> fFileExts;  // Suffixes for ROOT file names
-  std::vector<std::string> fWatchExts; // Suffixes for files to watch
   std::vector<strstr_t> cutList;
   std::vector<uint_t> GetDrawIndex( uint_t );
   bool fFoundCfg;
@@ -46,18 +52,16 @@ class OnlineConfig {
   int LoadFile( std::ifstream& infile, const std::string& filename );
   int CheckLoadIncludeFile( const std::string& sline,
                             const std::vector<std::string>& strvect );
-  bool MatchFilename( const std::string& fullname,
-                      const std::string& daqConfig, int runnumber ) const;
+//  bool MatchFilename( const std::string& fullname,
+//                      const std::string& daqConfig, int runnumber ) const;
 
 public:
   struct CmdLineOpts {
     std::string cfgfile;
     std::string cfgdir;
-    std::string plotpfx;
     std::string plotfmt;
-    std::string imgpfx;
     std::string imgfmt;
-    std::string outdir;
+    std::string plotsdir;
     int run{0};
     int verbosity{0};
     bool printonly{false};
@@ -81,9 +85,11 @@ public:
   const char* GetRootFile() const { return rootfilename.c_str(); };
   const char* GetGoldenFile() const { return goldenrootfilename.c_str(); };
   const std::string& GetGuiColor() const { return guicolor; };
-  const std::string& GetPlotFilePrefix() const { return fPlotFilePrefix; }
+  const std::string& GetProtoPlotFile() const { return fProtoPlotFile; }
+  const std::string& GetProtoPlotPageFile() const { return fProtoPlotPageFile; }
+  const std::string& GetProtoImageFile() const { return fProtoImageFile; }
+  const std::string& GetProtoMacroImageFile() const { return fProtoMacroImageFile; }
   const std::string& GetPlotFormat() const { return fPlotFormat; }
-  const std::string& GetImageFilePrefix() const { return fImageFilePrefix; }
   const std::string& GetImageFormat() const { return fImageFormat; }
   const std::string& GetPlotsDir() const { return plotsdir; };
   int GetVerbosity() const { return fVerbosity; }

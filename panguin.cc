@@ -20,11 +20,9 @@ int main( int argc, char** argv )
   tStart = clock();
   string cfgfile{"default.cfg"};
   string cfgdir;
-  string plotpfx{"summaryPlots"};
   string plotfmt{"pdf"};
-  string imgpfx{"hydra"};
   string imgfmt{"png"};
-  string outdir;
+  string plotsdir;
   int run{0};
   int verbosity{0};
   bool printonly{false};
@@ -43,16 +41,12 @@ int main( int argc, char** argv )
     ->type_name("<level>");
   cli.add_option("-C,--config-dir", cfgdir, "Configuration directory")
     ->type_name("<dir>");
-  cli.add_option("-O,--output-dir", outdir, "Output directory")
+  cli.add_option("-O,--plots-dir", plotsdir, "Output directory for plots")
     ->type_name("<dir>");
   cli.add_flag("-P,-b,--batch", printonly, "No GUI. Save plots to summary file(s)");
-  cli.add_option("--plot-prefix", plotpfx, "Plot file name prefix")
-    ->capture_default_str()->type_name("<fmt>");
   cli.add_option("-F,--plot-format", plotfmt, "Plot format (pdf, png, jpg ...)")
     ->capture_default_str()->type_name("<fmt>");
   cli.add_flag("-I,--images", saveImages, "Save individual plots as images (implies -P)");
-  cli.add_option("--image-prefix", imgpfx, "Image file name prefix")
-    ->capture_default_str()->type_name("<fmt>");
   cli.add_option("--image-format", imgfmt, "Image file format (png, jpg ...)")
     ->capture_default_str()->type_name("<fmt>");
   cli.set_version_flag("-V,--version", PANGUIN_VERSION);
@@ -86,8 +80,9 @@ int main( int argc, char** argv )
 
   TApplication theApp("panguin2", &argc, argv, nullptr, -1);
   online(OnlineConfig::CmdLineOpts{
-    cfgfile, cfgdir, plotpfx, plotfmt, imgpfx, imgfmt, outdir, run, verbosity,
-    printonly, saveImages});
+    cfgfile, cfgdir, plotfmt, imgfmt, plotsdir, run, verbosity,
+    printonly, saveImages}
+  );
   theApp.Run();
 
   cout << "Done. Time passed: "

@@ -3,7 +3,6 @@
 #include <iostream>
 #include <sstream>
 #include <utility>
-#include <dirent.h>
 #include <cmath>
 #include <cassert>
 #include <stdexcept>
@@ -13,11 +12,36 @@
 
 using namespace std;
 
-#define ALL(c) (c).begin(), (c).end()
+//#define ALL(c) (c).begin(), (c).end()
+
+//_____________________________________________________________________________
+// Replace all occurrences in 'str' of 'ostr' with 'nstr'
+string ReplaceAll( string str, const string& ostr, const string& nstr )
+{
+  size_t pos = 0, ol = ostr.size(), nl = nstr.size();
+  while( true ) {
+    pos = str.find(ostr, pos);
+    if( pos == string::npos )
+      break;
+    str.replace(pos, ol, nstr);
+    pos += nl;
+  }
+  return str;
+}
+
+//_____________________________________________________________________________
+string SubstituteRunNumber( string str, int runnumber )
+{
+  ostringstream ostr;
+  //TODO add option for leading zeros
+  ostr << runnumber;
+  str = ReplaceAll(str, "XXXXX", ostr.str());
+  return ReplaceAll(str, "%R", ostr.str());
+}
 
 //_____________________________________________________________________________
 // Get directory name part of 'path'
-static string DirnameStr( string path )
+string DirnameStr( string path )
 {
   auto pos = path.rfind('/');
   if( pos == string::npos )
@@ -30,25 +54,40 @@ static string DirnameStr( string path )
 }
 
 //_____________________________________________________________________________
+// Get directory name part of 'path'
+string BasenameStr( string path )
+{
+  auto pos = path.rfind('/');
+  if( pos != string::npos )
+    path.erase(0, pos+1);
+  return path;
+}
+
+//_____________________________________________________________________________
 // Try to open 'filename'. If 'filename' is a relative path (does not start
 // with '/', try to open it in the current directory and, if not found, in
 // any of the directories given in 'path'.
 // Returns a filestream and path string where the file was found. Test the
 // filestream to determine whether the file was successfully opened.
 static pair<ifstream, string>
-  OpenInPath( const string& filename, const string& path )
+OpenInPath( const string& filename, const string& path )
 {
-  string trypath, foundpath;
+  string foundpath;
   ifstream infile(filename);
-  if( !infile && filename[0] != '/') {
-    istringstream istr(path);
-    while( getline(istr, trypath, ':') ) {
-      foundpath = trypath;
-      trypath += "/" + filename;
-      infile.clear();
-      infile.open(trypath);
-      if( infile )
-        break;
+  if( !infile ) {
+    if( !filename.empty() && filename[0] != '/' ) {
+      string trypath;
+      istringstream istr(path);
+      while( getline(istr, trypath, ':') ) {
+        if( trypath.empty() )
+          continue;
+        foundpath = trypath;
+        trypath += "/" + filename;
+        infile.clear();
+        infile.open(trypath);
+        if( infile )
+          break;
+      }
     }
   } else {
     foundpath = DirnameStr(filename);
@@ -69,17 +108,17 @@ static void AppendToPath( string& path, const string& dir )
 
 //_____________________________________________________________________________
 // Expand specials and environment variables
-static void ExpandFileName( string& str )
+static string ExpandFileName( string str )
 {
   if( str.empty() )
-    return;
+    return str;
   if( str[0] == '~' ) {
     auto* home = getenv("HOME");
     if( home )
       str.replace(0, 1, home);
   }
   if( str.size() < 2 )
-    return;
+    return str;
   size_t pos;
   while( (pos = str.find('$')) != string::npos ) {
     auto iend = find_if(str.begin() + pos + 1, str.end(), []( int c ) {
@@ -91,6 +130,7 @@ static void ExpandFileName( string& str )
     if( envval )
       str.replace(pos, len + 1, envval);
   }
+  return str;
 }
 
 //_____________________________________________________________________________
@@ -100,20 +140,6 @@ static int ExtractRunNumber( const string& filename )
 {
   string temp = filename.substr(filename.rfind('_') + 1);
   return stoi(temp.substr(0, temp.rfind('.')));
-}
-
-//_____________________________________________________________________________
-// Replace all occurrences in 'str' of 'ostr' with 'nstr'
-static string ReplaceAll( string str, const string& ostr, const string& nstr )
-{
-  size_t pos = 0, ol = ostr.size(), nl = nstr.size();
-  while( (pos += nl) || pos == 0 ) {
-    pos = str.find(ostr, pos);
-    if( pos == string::npos )
-      break;
-    str.replace(pos, ol, nstr);
-  }
-  return str;
 }
 
 //_____________________________________________________________________________
@@ -130,11 +156,9 @@ OnlineConfig::OnlineConfig( const string& config_file_name )
 //_____________________________________________________________________________
 OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   : confFileName(opts.cfgfile)
-  , fPlotFilePrefix(opts.plotpfx)
   , fPlotFormat(opts.plotfmt)
-  , fImageFilePrefix(opts.imgpfx)
   , fImageFormat(opts.imgfmt)
-  , plotsdir(opts.outdir)
+  , plotsdir(opts.plotsdir)
   , fFoundCfg(false)
   , fMonitor(false)
   , fVerbosity(opts.verbosity)
@@ -190,8 +214,7 @@ int OnlineConfig::CheckLoadIncludeFile(
            << "--> " << std::quoted(sline) << endl;
       return 0;
     }
-    string fname = strvect[1], incdir;
-    ExpandFileName( fname );
+    string fname = ExpandFileName(strvect[1]), incdir;
     ifstream ifs;
     std::tie(ifs, incdir) = OpenInPath(fname, fConfFilePath);
     if( !ifs )
@@ -298,8 +321,7 @@ bool OnlineConfig::ParseConfig()
              << endl;
         continue;
       }
-      rootfilename = sConfFile[i][1];
-      ExpandFileName(rootfilename);
+      rootfilename = ExpandFileName(sConfFile[i][1]);
       fRunNumber = ExtractRunNumber(sConfFile[i][1]);
     }
     if( sConfFile[i][0] == "goldenrootfile" ) {
@@ -315,8 +337,7 @@ bool OnlineConfig::ParseConfig()
              << endl;
         continue;
       }
-      goldenrootfilename = sConfFile[i][1];
-      ExpandFileName(goldenrootfilename);
+      goldenrootfilename = ExpandFileName(sConfFile[i][1]);
     }
     if( sConfFile[i][0] == "protorootfile" ) {
       if( sConfFile[i].size() != 2 ) {
@@ -325,14 +346,7 @@ bool OnlineConfig::ParseConfig()
              << endl;
         continue;
       }
-      if( !protorootfile.empty() ) {
-        cerr << "WARNING: too many protorootfile's defined. "
-             << " Will only use the first one."
-             << endl;
-        continue;
-      }
-      protorootfile = sConfFile[i][1];
-      ExpandFileName(protorootfile);
+      fProtoRootFiles.push_back(ExpandFileName(sConfFile[i][1]));
     }
     if( sConfFile[i][0] == "guicolor" ) {
       if( sConfFile[i].size() != 2 ) {
@@ -362,8 +376,7 @@ bool OnlineConfig::ParseConfig()
              << endl;
         continue;
       }
-      plotsdir = sConfFile[i][1];
-      ExpandFileName(plotsdir);
+      plotsdir = ExpandFileName(sConfFile[i][1]);
     }
     if( sConfFile[i][0] == "plotFormat" ) {
       if( sConfFile[i].size() != 2 ) {
@@ -387,32 +400,34 @@ bool OnlineConfig::ParseConfig()
              << endl;
         continue;
       }
-      fRootFilesPath = sConfFile[i][1];
-      ExpandFileName(fRootFilesPath);
+      fRootFilesPath = ExpandFileName(sConfFile[i][1]);
     }
-    if( sConfFile[i][0] == "daqConfigs" ) {
-      if( sConfFile[i].size() < 2 ) {
-        cerr << "WARNING: Missing arguments for daqConfigs command."
+    if( sConfFile[i][0] == "protoplotfile" ) {
+      if( sConfFile[i].size() != 2 ) {
+        cerr << "WARNING: protoplotfile command does not have the "
+             << "correct number of arguments (needs 1)"
              << endl;
         continue;
       }
-      daqConfigs.assign(sConfFile[i].begin() + 1, sConfFile[i].end());
+      fProtoPlotFile = ExpandFileName(sConfFile[i][1]);
     }
-    if( sConfFile[i][0] == "rootFileExts" ) {
-      if( sConfFile[i].size() < 2 ) {
-        cerr << "WARNING: Missing arguments for rootFileExts command."
+    if( sConfFile[i][0] == "protoimagefile" ) {
+      if( sConfFile[i].size() != 2 ) {
+        cerr << "WARNING: protoimagefile command does not have the "
+             << "correct number of arguments (needs 1)"
              << endl;
         continue;
       }
-      fFileExts.assign(sConfFile[i].begin() + 1, sConfFile[i].end());
+      fProtoImageFile = ExpandFileName(sConfFile[i][1]);
     }
-    if( sConfFile[i][0] == "watchFileExts" ) {
-      if( sConfFile[i].size() < 2 ) {
-        cerr << "WARNING: Missing arguments for monitorFileExts command."
+    if( sConfFile[i][0] == "protomacrofile" ) {
+      if( sConfFile[i].size() != 2 ) {
+        cerr << "WARNING: protomacrofile command does not have the "
+             << "correct number of arguments (needs 1)"
              << endl;
         continue;
       }
-      fWatchExts.assign(sConfFile[i].begin() + 1, sConfFile[i].end());
+      fProtoMacroFile = ExpandFileName(sConfFile[i][1]);
     }
   }
 
@@ -436,13 +451,15 @@ bool OnlineConfig::ParseConfig()
          << goldenrootfilename << endl;
   }
 
-  // Set fallback defaults (TODO consider removing)
-  if( daqConfigs.empty() )
-    daqConfigs = {"e1209019_trigtest", "gmn", "bbgem_replayed"};
-  if( fFileExts.empty() )
-    fFileExts = {".root", ".0.root"};
-  if( fWatchExts.empty() )
-    fWatchExts = {".root", ".adaq1"};
+  // Set fallback defaults
+  if( fProtoPlotFile.empty() )
+    fProtoPlotFile = "summaryPlots_%R_%C.pdf";
+  if( fProtoPlotPageFile.empty() )
+    fProtoPlotPageFile = "summaryPlots_%R_page%P_%C.pdf";
+  if( fProtoImageFile.empty() )
+    fProtoImageFile = "hydra_%R_%V_%C.png";
+  if( fProtoMacroImageFile.empty() )
+    fProtoMacroImageFile = "hydra_%R_page%P_pad%D_%C.png";
 
   return true;
 
@@ -692,10 +709,9 @@ void OnlineConfig::GetDrawCommand(
         } else if( title.empty() ) {
           title = word;
         } else {
-          //  This case uses neither "i = j;" or "break;", because
-          //  we want to be able to include all the words in the title.
-          //  The title will end before the end of the line only if
-          //  it is delimited by quotes.
+          //  This case uses neither "i = j;" or "break;", because we want to
+          //  be able to include all the words in the title. The title will
+          //  end before the end of the line only if it is delimited by quotes.
           title += " " + word;
         }
       }
@@ -767,82 +783,47 @@ void OnlineConfig::GetDrawCommand(
 }
 
 //_____________________________________________________________________________
-// Match 'fullname' against pattern built from 'daqConfig' and 'runnumber'
-bool OnlineConfig::MatchFilename(
-  const string& fullname, const string& daqConfig, int runnumber ) const
-{
-  ostringstream partialname;
-  partialname << daqConfig << "_" << runnumber;
-  const auto& suffixes = fMonitor ? fWatchExts : fFileExts;
-  return any_of(ALL(suffixes), [&]( const string& suf ) {
-    if( fVerbosity >= 1 && suf.find(".0.") != string::npos )
-      cout << __PRETTY_FUNCTION__ << "\t" << __LINE__ << endl
-           << "Looking for a segmented output (segment 0 only)" << endl;
-    return fullname.find(partialname.str() + suf) != string::npos;
-  });
-}
-
-//_____________________________________________________________________________
 // Override the ROOT file defined in the cfg file. This is called when the
 // user specifies a run number on the command line.
 void OnlineConfig::OverrideRootFile( int runnumber )
 {
   cout << "Root file defined before was: " << rootfilename << endl;
-  if( !protorootfile.empty() ) {
-    // If protorootfile is used, construct filename using it, substituting the
-    // run number provided.
 
-    ostringstream runnostr;
-    runnostr << runnumber;
-    protorootfile = ReplaceAll(protorootfile, "XXXXX", runnostr.str());
-    rootfilename = protorootfile;
+  ifstream ifs;
+  string fp;
+  if( fProtoRootFiles.empty() ) {
+    std::tie(ifs, fp) = OpenInPath(rootfilename, "");
+  } else {
+    for( auto protofile: fProtoRootFiles ) {
+      assert(!protofile.empty());  // else error in ParseConfig
+      SubstituteRunNumber(protofile, 0);
+      string fnmRootPath;
+      if( protofile[0] != '/' ) {
+        // build path
+        AppendToPath(fnmRootPath, fRootFilesPath);
+        auto* envar = getenv("ROOTFILES");
+        if( envar )
+          AppendToPath(fnmRootPath, envar);
+        AppendToPath(fnmRootPath, "./rootfiles");
 
-    cout << "Protorootfile set, use it: " << rootfilename << endl;
-  }
-
-  else {
-    // If there's no protorootfile in the configuration, find a root file with
-    // a matching run number and certain file name patterns in fRootFilesDir
-    // (from config), $ROOTFILES, or ./rootfiles.
-    // This is essentially a built-in logic for trying various protorootfiles.
-    string fnmRootPath;
-    AppendToPath(fnmRootPath, fRootFilesPath);
-    auto* envar = getenv("ROOTFILES");
-    if( envar )
-      AppendToPath(fnmRootPath, envar);
-    AppendToPath(fnmRootPath, "./rootfiles");
-
-    cout << " Looking for ROOT file with runnumber " << runnumber
-         << " in " << fnmRootPath << endl;
-
-    bool found = false;
-    istringstream istr(fnmRootPath);
-    string fnmRoot;
-    while( !found && getline(istr, fnmRoot, ':') ) {
-      DIR* dirSearch;
-      struct dirent* entSearch;
-      if( (dirSearch = opendir(fnmRoot.c_str())) ) {
-        while( !found && (entSearch = readdir(dirSearch)) ) {
-          string fullname = entSearch->d_name;
-          if( fullname == "." || fullname == ".." ) continue;
-          for( const auto& daqConfig: daqConfigs ) {
-            found = MatchFilename(fullname, daqConfig, runnumber);
-            if( found ) {
-              rootfilename = fnmRoot + "/"; rootfilename += fullname;
-              break;
-            }
-          }
-        }
-        closedir(dirSearch);
+        cout << " Looking for ROOT file with runnumber " << runnumber
+             << " in " << fnmRootPath << endl;
+      }
+      // try opening protofile in path
+      std::tie(ifs, fp) = OpenInPath(protofile, fnmRootPath);
+      if( ifs ) {
+        rootfilename = fp + protofile;
+        break;
       }
     }
-    if( found ) {
-      cout << "\t found file " << rootfilename << endl;
-    } else {
-      cout << "No ROOT file found. Double check your configurations and files."
-           << "Quitting" << endl;
-      exit(1);
-    }
+  }
+
+  if( ifs ) {
+    cout << "\t found file " << rootfilename << endl;
+  } else {
+    cout << "No ROOT file found. Double check your configurations and files."
+         << "Quitting" << endl;
+    exit(1);
   }
 
   fRunNumber = runnumber;

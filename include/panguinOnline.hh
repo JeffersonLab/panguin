@@ -44,7 +44,8 @@ class OnlineGUI {
   TGTextButton* fPrint = nullptr;
   TCanvas* fCanvas = nullptr; // Present Embedded canvas
   OnlineConfig fConfig;
-  UInt_t current_page;
+  Int_t current_page;
+  Int_t current_pad;
   TFile* fRootFile = nullptr;
   TFile* fGoldenFile = nullptr;
   Bool_t doGolden;
@@ -52,7 +53,7 @@ class OnlineGUI {
   std::vector<Int_t> fTreeEntries;
   std::vector<std::pair<TString, TString> > fileObjects;
   std::vector<std::vector<TString> > treeVars;
-  UInt_t runNumber;
+  Int_t runNumber;
   TTimer* timer = nullptr;
   TTimer* timerNow = nullptr; // used to update time
   Bool_t fUpdate;
@@ -67,6 +68,9 @@ class OnlineGUI {
   TH3* mytemp3d_golden = nullptr;
 
   int fVerbosity;
+
+  std::string SubstitutePlaceholders(
+    std::string str, const std::string& var = std::string() ) const;
 
 public:
   using cmdmap_t = std::map<std::string, std::string>;
@@ -84,7 +88,7 @@ public:
   void GetFileObjects();
   void GetTreeVars();
   void GetRootTree();
-  UInt_t GetTreeIndex( TString );
+  UInt_t GetTreeIndex( const TString& );
   UInt_t GetTreeIndexFromName( const TString& );
   void TreeDraw( const cmdmap_t& command );
   void HistDraw( const cmdmap_t& command );
@@ -92,7 +96,7 @@ public:
   void LoadDraw( const cmdmap_t& command );
   void LoadLib( const cmdmap_t& command );
   void SaveImage( TObject* o, const cmdmap_t& command ) const;
-  void SaveMacroImage( const cmdmap_t& drawcommand, UInt_t ipad );
+  void SaveMacroImage( const cmdmap_t& drawcommand );
   void DoDrawClear();
   void TimerUpdate();
   void UpdateCurrentTime();  // update current time

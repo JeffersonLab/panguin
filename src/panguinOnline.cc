@@ -37,6 +37,97 @@ ClassImp(OnlineGUI)
 
 using namespace std;
 
+//_____________________________________________________________________________
+// Helper function to get value for given key from const std::map&
+static const string& getMapVal( const map<string, string>& m, const string& key )
+{
+  static const string nullstr{};
+  auto it = m.find(key);
+  return it != m.end() ? it->second : nullstr;
+}
+
+//_____________________________________________________________________________
+// Set up mode of current pad (axes linear/log scale, margins)
+static void SetupPad( const OnlineGUI::cmdmap_t& command )
+{
+  gPad->SetLogx(command.find("logx") != command.end());
+  gPad->SetLogy(command.find("logy") != command.end());
+  gPad->SetLogz(command.find("logz") != command.end());
+  bool do_grid = (getMapVal(command, "grid") == "grid");
+  gPad->SetGrid(do_grid, do_grid);
+
+  const string& mopt = getMapVal(command, "drawopt");
+  if( mopt.find("colz") != string::npos )
+    gPad->SetRightMargin(0.15);
+}
+
+//_____________________________________________________________________________
+// Make a temporary canvas in batch mode for drawing images to be saved
+static unique_ptr<TCanvas> MakeCanvas( const char* name = "c" )
+{
+  auto ww = gPad->GetWw(), hh = gPad->GetWh();
+#if __cplusplus >= 201402L
+  auto c = make_unique<TCanvas>(name, name, ww, hh);
+#else
+  auto c = unique_ptr<TCanvas>(
+                new TCanvas(name, name, gPad->GetWw(), gPad->GetWh()));
+#endif
+  c->SetBatch();
+  c->SetCanvasSize(ww, hh);
+  return c;
+}
+
+//_____________________________________________________________________________
+static int MakePlotsDir( const string& dir )
+{
+  if( !dir.empty() && gSystem->AccessPathName(dir.c_str()) ) {
+    auto status = gSystem->mkdir(dir.c_str(), true);
+    if( status ) {
+      cerr << "ERROR:  Cannot create requested output directory "
+           << dir << endl;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+//_____________________________________________________________________________
+// Get file basename without extension (erase starting from first '.')
+static inline string StripExtension( string str )
+{
+  str = BasenameStr(str);
+  auto pos = str.find('.');
+  if( pos != string::npos )
+    str.erase(pos);
+  return str;
+}
+
+//_____________________________________________________________________________
+// Substitute placeholders in file name 'str'. Used to construct plot and image
+// file names
+string OnlineGUI::SubstitutePlaceholders( string str, const string& var ) const
+{
+  ostringstream ostr;
+  str = SubstituteRunNumber(str, runNumber);
+  // Config file name (less extension)
+  str = ReplaceAll(
+    str, "%C", StripExtension(fConfig.GetConfFileName()));
+  // Histogram, tree variable or macro name (less extension)
+  if( !var.empty() ) {
+    str = ReplaceAll(str, "%V", StripExtension(var));
+  }
+  // Page number
+  ostr.clear();
+  ostr.str("");
+  ostr << setw(2) << setfill('0') << current_page;
+  str = ReplaceAll(str, "%P", ostr.str());
+  // Pad number
+  ostr.clear();
+  ostr.str("");
+  ostr << setw(2) << setfill('0') << current_pad;
+  return ReplaceAll(str, "%D", ostr.str());
+}
+
 ///////////////////////////////////////////////////////////////////
 //  Class: OnlineGUI
 //
@@ -48,6 +139,7 @@ OnlineGUI::OnlineGUI( OnlineConfig&& config )
   : fConfig{std::move(config)}
   , runNumber{0}
   , current_page{0}
+  , current_pad{0}
   , doGolden{false}
   , fUpdate{false}
   , fFileAlive{false}
@@ -78,7 +170,6 @@ OnlineGUI::OnlineGUI( const OnlineConfig& config )
 
 void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
 {
-
   // Open the RootFile.  Die if it doesn't exist.
   //  unless we're watching a file.
   fRootFile = new TFile(fConfig.GetRootFile(), "READ");
@@ -103,7 +194,6 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
         fRootTree.erase(fRootTree.begin() + i);
       }
     }
-
   }
   TString goldenfilename = fConfig.GetGoldenFile();
   if( !goldenfilename.IsNull() ) {
@@ -307,28 +397,6 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
 
 }
 
-// Helper function to get value for given key from const std::map&
-static const string& getMapVal( const map<string, string>& m, const string& key )
-{
-  static const string nullstr{};
-  auto it = m.find(key);
-  return it != m.end() ? it->second : nullstr;
-}
-
-// Set up mode of current pad (axes linear/log scale, margins)
-static void SetupPad( const OnlineGUI::cmdmap_t& command )
-{
-  gPad->SetLogx(command.find("logx") != command.end());
-  gPad->SetLogy(command.find("logy") != command.end());
-  gPad->SetLogz(command.find("logz") != command.end());
-  bool do_grid = (getMapVal(command, "grid") == "grid");
-  gPad->SetGrid(do_grid, do_grid);
-
-  const string& mopt = getMapVal(command, "drawopt");
-  if( mopt.find("colz") != string::npos )
-    gPad->SetRightMargin(0.15);
-}
-
 void OnlineGUI::DoDraw()
 {
   // The main Drawing Routine.
@@ -389,13 +457,14 @@ void OnlineGUI::DoDraw()
 
   // Draw the histograms.
   for( UInt_t i = 0; i < draw_count; i++ ) {
-    fConfig.GetDrawCommand(current_page, i, drawcommand);
-    fCanvas->cd(i + 1);
+    current_pad = i + 1;
+    fConfig.GetDrawCommand(current_page, current_pad - 1, drawcommand);
+    fCanvas->cd(current_pad);
 
     const string& cmd = getMapVal(drawcommand, "variable");
     if( !cmd.empty() ) {
       if( cmd == "macro" ) {
-        SaveMacroImage(drawcommand, i);
+        SaveMacroImage(drawcommand);
         MacroDraw(drawcommand);
       } else if( cmd == "loadmacro" ) {
         LoadDraw(drawcommand);
@@ -613,7 +682,7 @@ void OnlineGUI::GetRootTree()
   }
 }
 
-UInt_t OnlineGUI::GetTreeIndex( TString var )
+UInt_t OnlineGUI::GetTreeIndex( const TString& var )
 {
   // Utility to find out which Tree (in fRootTree) has the specified
   // variable "var".  If the variable is a collection of Tree
@@ -851,8 +920,6 @@ void OnlineGUI::CheckRootFile()
 
 Int_t OnlineGUI::OpenRootFile()
 {
-
-
   fRootFile = new TFile(fConfig.GetRootFile(), "READ");
   if( fRootFile->IsZombie() || (fRootFile->GetSize() == -1)
       || (fRootFile->ReadKeys() == 0) ) {
@@ -893,55 +960,6 @@ Int_t OnlineGUI::OpenRootFile()
 
 }
 
-// Make a temporary canvas in batch mode for drawing images to be saved
-static unique_ptr<TCanvas> MakeCanvas(const char* name = "c")
-{
-  auto ww = gPad->GetWw(), hh = gPad->GetWh();
-#if __cplusplus >= 201402L
-  auto c = make_unique<TCanvas>(name, name, ww, hh);
-#else
-  auto c = unique_ptr<TCanvas>(
-                new TCanvas(name, name, gPad->GetWw(), gPad->GetWh()));
-#endif
-  c->SetBatch();
-  c->SetCanvasSize(ww, hh);
-  return c;
-}
-
-// Build the image file name for histograns and tree variables. Structure
-//   <prefix>_<runnumber>_<histogram/variable name>_<plotconfig name>.<image format>
-// Example:
-//   hydra_12345_hbb_gem_iSampMaxU_GMN_critical.png
-static string MakeImageFileName( const OnlineConfig& config, const string& var)
-{
-  ostringstream sfn;
-  if( !config.GetPlotsDir().empty() )
-    sfn << config.GetPlotsDir() << "/";
-  sfn << config.GetImageFilePrefix();
-  auto runNum = config.GetRunNumber();
-  if( runNum != 0 )
-    sfn << "_" << runNum;
-  sfn << "_" << var;
-  string confName = config.GetConfFileName();
-  auto pos = confName.rfind('.');  // chop .cfg
-  if( pos != string::npos )
-    confName.erase(pos);
-  sfn << "_" << confName << "." << config.GetImageFormat();
-  return sfn.str();
-}
-
-// Build the image file name for plots generated by macros. Structure:
-//   <prefix>_<runnumber>_page<page number>_pad<pad number>_<plotconfig name>.<image format>
-// Example:
-//   hydra_12345_page02_pad05_GMN_critical.png
-static string MakeImageFileName( const OnlineConfig& config, UInt_t page, UInt_t pad )
-{
-  ostringstream var;
-  var << "page" << setw(2) << setfill('0') << page
-      << "_pad" << setw(2) << pad + 1;
-  return MakeImageFileName(config, var.str());
-}
-
 void OnlineGUI::SaveImage( TObject* o, const cmdmap_t& command ) const
 {
   if( fSaveImages ) {
@@ -951,19 +969,22 @@ void OnlineGUI::SaveImage( TObject* o, const cmdmap_t& command ) const
       SetupPad(command);
       const char* opt = getMapVal(command, "drawopt").c_str();
       o->Draw(opt);
-      c->SaveAs(MakeImageFileName(fConfig, var).c_str());
+      c->SaveAs(
+        SubstitutePlaceholders(fConfig.GetProtoImageFile(), var).c_str());
     }
   }
 }
 
-void OnlineGUI::SaveMacroImage( const cmdmap_t& drawcommand, UInt_t ipad )
+void OnlineGUI::SaveMacroImage( const cmdmap_t& drawcommand )
 {
   if( fSaveImages ) {
     auto c = MakeCanvas();
     MacroDraw(drawcommand);
-    c->SaveAs(MakeImageFileName(fConfig, current_page, ipad).c_str());
+    c->SaveAs(SubstitutePlaceholders(
+      fConfig.GetProtoMacroImageFile(), getMapVal(drawcommand, "macro")
+    ).c_str());
     // Switch back to main canvas for subsequent MacroDraw call
-    fCanvas->cd(ipad + 1);
+    fCanvas->cd(current_pad);
   }
 }
 
@@ -1197,7 +1218,7 @@ void OnlineGUI::PrintToFile()
      "JPG files", "*.jpg",
      nullptr, nullptr};
   fi.fFileTypes = myfiletypes;
-  fi.fIniDir    = StrDup(dir.Data());
+  fi.fIniDir = StrDup(dir.Data());
 
   new TGFileDialog(gClient->GetRoot(), fMain, kFDSave, &fi);
   if( fi.fFilename ) fCanvas->Print(fi.fFilename);
@@ -1256,22 +1277,11 @@ void OnlineGUI::PrintPages()
   if( printFormat.IsNull() ) printFormat = "pdf";
   if( printFormat != "pdf" ) pagePrint = kTRUE;
 
-  TString filename = fConfig.GetPlotFilePrefix();
-  runNumber = fConfig.GetRunNumber();
-  if( runNumber != 0 ) {
-    filename += "_";
-    filename += runNumber;
-  } else {
-    printf(" Warning for pretty plots: runNumber = %i\n", runNumber);
-  }
-
-  filename.Prepend(plotsdir + "/");
-  if( pagePrint )
-    filename += "_pageXXXX";
-  TString fConfName = fConfig.GetConfFileName();
-  TString fCfgNm = fConfName(fConfName.Last('/') + 1, fConfName.Length());
-  filename += "_" + fCfgNm(0, fCfgNm.Last('.'));
-  filename += "." + printFormat;
+  string protofilename = pagePrint ? fConfig.GetProtoPlotPageFile()
+                                   : fConfig.GetProtoPlotFile();
+  TString filename;
+  if( !pagePrint )
+    filename = SubstitutePlaceholders(protofilename);
 
   TString pagehead = "Summary Plots";
   if( runNumber != 0 ) {
@@ -1281,15 +1291,9 @@ void OnlineGUI::PrintPages()
   }
   //  pagehead += ": ";
 
-  if( !fConfig.GetPlotsDir().empty()
-      && gSystem->AccessPathName(fConfig.GetPlotsDir().c_str()) ) {
-    auto status = gSystem->mkdir(fConfig.GetPlotsDir().c_str(), true);
-    if( status ) {
-      cerr << "ERROR:  Cannot create requested output directory "
-           << fConfig.GetPlotsDir() << endl;
-      gApplication->Terminate();
-    }
-  }
+  if( MakePlotsDir(fConfig.GetPlotsDir()) )
+    gApplication->Terminate();
+
   gStyle->SetPalette(1);
   //gStyle->SetTitleX(0.15);
   //gStyle->SetTitleY(0.9);
@@ -1297,7 +1301,6 @@ void OnlineGUI::PrintPages()
   //gStyle->SetHistLineColor(1);
   gStyle->SetHistFillStyle(0);
   if( !pagePrint ) fCanvas->Print(filename + "[");
-  TString origFilename = filename;
   for( UInt_t i = 0; i < fConfig.GetPageCount(); i++ ) {
     current_page = i;
     DoDraw();
@@ -1309,8 +1312,7 @@ void OnlineGUI::PrintPages()
     lt->SetTextSize(0.025);
     lt->DrawLatex(0.05, 0.98, pagename);
     if( pagePrint ) {
-      filename = origFilename;
-      filename.ReplaceAll("XXXX", Form("%02d", current_page));
+      filename = SubstitutePlaceholders(protofilename);
       cout << "Printing page " << current_page
            << " to file = " << filename << endl;
     }
@@ -1321,6 +1323,7 @@ void OnlineGUI::PrintPages()
   gApplication->Terminate();
 }
 
+//_____________________________________________________________________________
 void OnlineGUI::MyCloseWindow()
 {
   fMain->SendCloseMessage();
