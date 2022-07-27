@@ -108,7 +108,7 @@ static inline string StripExtension( string str )
 string OnlineGUI::SubstitutePlaceholders( string str, const string& var ) const
 {
   ostringstream ostr;
-  str = SubstituteRunNumber(str, runNumber);
+  str = fConfig.SubstituteRunNumber(str, runNumber);
   // Config file name (less extension)
   str = ReplaceAll(
     str, "%C", StripExtension(fConfig.GetConfFileName()));
@@ -119,12 +119,16 @@ string OnlineGUI::SubstitutePlaceholders( string str, const string& var ) const
   // Page number
   ostr.clear();
   ostr.str("");
-  ostr << setw(2) << setfill('0') << current_page;
+  if( fConfig.GetPageNoWidth() > 0 )
+    ostr << setw(fConfig.GetPageNoWidth()) << setfill('0');
+  ostr << current_page;
   str = ReplaceAll(str, "%P", ostr.str());
   // Pad number
   ostr.clear();
   ostr.str("");
-  ostr << setw(2) << setfill('0') << current_pad;
+  if( fConfig.GetPadNoWidth() > 0 )
+    ostr << setw(fConfig.GetPadNoWidth()) << setfill('0');
+  ostr << current_pad;
   return ReplaceAll(str, "%D", ostr.str());
 }
 

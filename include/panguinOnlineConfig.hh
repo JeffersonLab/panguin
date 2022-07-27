@@ -15,7 +15,6 @@ using strstr_t = std::pair<std::string, std::string>;
 
 std::string ReplaceAll(
   std::string str, const std::string& ostr, const std::string& nstr );
-std::string SubstituteRunNumber( std::string str, int runnumber );
 
 class OnlineConfig {
   // Class that takes care of the config file
@@ -46,6 +45,9 @@ class OnlineConfig {
   int fVerbosity;
   int hist2D_nBinsX, hist2D_nBinsY;
   int fRunNumber;
+  int fRunNoWidth;
+  int fPageNoWidth;
+  int fPadNoWidth;
   bool fPrintOnly;
   bool fSaveImages;
 
@@ -73,6 +75,7 @@ public:
   explicit OnlineConfig( const CmdLineOpts& opts );
   bool ParseConfig();
   int GetRunNumber() const { return fRunNumber; }
+  std::string SubstituteRunNumber( std::string str, int runnumber ) const;
 
   const std::string& GetGuiDirectory() const { return fConfFileDir; }
   const std::string& GetConfFileName() const { return confFileName; }
@@ -93,6 +96,9 @@ public:
   const std::string& GetImageFormat() const { return fImageFormat; }
   const std::string& GetPlotsDir() const { return plotsdir; };
   int GetVerbosity() const { return fVerbosity; }
+  int GetRunNoWidth() const { return fRunNoWidth; }
+  int GetPageNoWidth() const { return fPageNoWidth; }
+  int GetPadNoWidth() const { return fPadNoWidth; }
   bool DoPrintOnly() const { return fPrintOnly; }
   bool DoSaveImages() const { return fSaveImages; }
   const std::string& GetDefinedCut( const std::string& ident );

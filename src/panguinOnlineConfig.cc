@@ -6,7 +6,7 @@
 #include <cmath>
 #include <cassert>
 #include <stdexcept>
-#include <iomanip>    // quoted
+#include <iomanip>    // quoted, setw, setfill
 #include <cctype>     // isalnum
 #include <algorithm>  // find_if
 
@@ -27,16 +27,6 @@ string ReplaceAll( string str, const string& ostr, const string& nstr )
     pos += nl;
   }
   return str;
-}
-
-//_____________________________________________________________________________
-string SubstituteRunNumber( string str, int runnumber )
-{
-  ostringstream ostr;
-  //TODO add option for leading zeros
-  ostr << runnumber;
-  str = ReplaceAll(str, "XXXXX", ostr.str());
-  return ReplaceAll(str, "%R", ostr.str());
 }
 
 //_____________________________________________________________________________
@@ -165,6 +155,9 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   , hist2D_nBinsX(0)
   , hist2D_nBinsY(0)
   , fRunNumber(opts.run)
+  , fRunNoWidth(5)
+  , fPageNoWidth(2)
+  , fPadNoWidth(2)
   , fPrintOnly(opts.printonly)
   , fSaveImages(opts.saveimages)
 {
@@ -266,6 +259,17 @@ int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename )
        << filename << endl;
 
   return 0;
+}
+
+//_____________________________________________________________________________
+string OnlineConfig::SubstituteRunNumber( string str, int runnumber ) const
+{
+  ostringstream ostr;
+  if( fRunNoWidth > 0 )
+    ostr << setw( fRunNoWidth ) << setfill('0');
+  ostr << runnumber;
+  str = ReplaceAll(str, "XXXXX", ostr.str());
+  return ReplaceAll(str, "%R", ostr.str());
 }
 
 //_____________________________________________________________________________
