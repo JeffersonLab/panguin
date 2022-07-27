@@ -6,12 +6,16 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <functional> // std::function
 
 std::string DirnameStr( std::string path );
 std::string BasenameStr( std::string path );
 
 using uint_t = unsigned int;
 using strstr_t = std::pair<std::string, std::string>;
+using VecStr_t = std::vector<std::string>;
+using ConfLines_t = std::vector<VecStr_t>;
+using PageInfo_t = std::vector<std::pair<uint_t, uint_t>>;
 
 std::string ReplaceAll(
   std::string str, const std::string& ostr, const std::string& nstr );
@@ -33,11 +37,11 @@ class OnlineConfig {
   std::string fImageFormat;       // File format for saved image files (default: png)
   std::string plotsdir;           // Where to save plots
   // the config file, in memory
-  std::vector<std::vector<std::string>> sConfFile;
-  std::vector<std::string> fProtoRootFiles; // Candidate ROOT file names
+  ConfLines_t sConfFile;
+  VecStr_t    fProtoRootFiles; // Candidate ROOT file names
   // pageInfo is the vector of the pages containing the sConfFile index
   //   and how many commands issued within that page (title, 1d, etc.)
-  std::vector<std::pair<uint_t, uint_t> > pageInfo;
+  PageInfo_t  pageInfo;
   std::vector<strstr_t> cutList;
   std::vector<uint_t> GetDrawIndex( uint_t );
   bool fFoundCfg;
@@ -53,9 +57,17 @@ class OnlineConfig {
 
   int LoadFile( std::ifstream& infile, const std::string& filename );
   int CheckLoadIncludeFile( const std::string& sline,
-                            const std::vector<std::string>& strvect );
-//  bool MatchFilename( const std::string& fullname,
-//                      const std::string& daqConfig, int runnumber ) const;
+                            const VecStr_t& strvect );
+
+  struct CommandDef {
+    std::string cmd;
+    size_t narg = 0;
+    std::function<void(const VecStr_t&)> action = nullptr;
+  };
+  static int ParseCommands( ConfLines_t::const_iterator pos,
+                            ConfLines_t::const_iterator end,
+                            const std::vector<CommandDef>& items );
+
 
 public:
   struct CmdLineOpts {
@@ -102,7 +114,7 @@ public:
   bool DoPrintOnly() const { return fPrintOnly; }
   bool DoSaveImages() const { return fSaveImages; }
   const std::string& GetDefinedCut( const std::string& ident );
-  std::vector<std::string> GetCutIdent();
+  VecStr_t GetCutIdent();
   // Page utilites
   uint_t GetPageCount() { return pageInfo.size(); };
   std::pair<uint_t, uint_t> GetPageDim( uint_t );

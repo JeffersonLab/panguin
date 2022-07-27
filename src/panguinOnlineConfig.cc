@@ -13,7 +13,7 @@
 
 using namespace std;
 
-//#define ALL(c) (c).begin(), (c).end()
+#define ALL(c) (c).begin(), (c).end()
 
 //_____________________________________________________________________________
 // Replace all occurrences in 'str' of 'ostr' with 'nstr'
@@ -280,6 +280,66 @@ string OnlineConfig::SubstituteRunNumber( string str, int runnumber ) const
 }
 
 //_____________________________________________________________________________
+static ConfLines_t::const_iterator
+ParsePageInfo( ConfLines_t::const_iterator pos, ConfLines_t::const_iterator end,
+               PageInfo_t& pageInfo )
+{
+  auto beg = pos, start = pos, first_page = end;
+  bool counting = false;
+  uint_t command_cnt = 0;
+  for( ; pos != end; ++pos ) {
+    if( (*pos)[0] == "newpage" ) {
+      if( counting )
+        goto finish_page;
+      counting = true;
+      start = first_page = pos;
+    } else if( counting ) {
+      ++command_cnt;
+      if( pos + 1 == end ) {
+  finish_page:
+        pageInfo.emplace_back(start - beg, command_cnt);
+        command_cnt = 0;
+        start = pos;
+      }
+    }
+  }
+  return first_page;
+}
+
+//_____________________________________________________________________________
+int OnlineConfig::ParseCommands( ConfLines_t::const_iterator pos,
+                                 ConfLines_t::const_iterator end,
+                                 const vector<CommandDef>& items )
+{
+  for( ; pos != end; ++pos ) {
+    const auto& line = *pos;
+    for( const auto& item: items ) {
+      if( item.cmd != line[0] )
+        continue;
+      auto narg = line.size()-1;
+      if( narg != item.narg ) {
+        if( narg < item.narg ) {
+          cerr << "ERROR: not enough arguments for " << item.cmd << " command,"
+               << "needs " << item.narg << ", found " << narg
+               << ". Command skipped." << endl;
+          continue;
+        } else
+          cerr << "WARNING: too many arguments for " << item.cmd << " command,"
+               << "expect " << item.narg << ", found " << narg
+               << ", ignoring extras" << endl;
+      }
+      if( item.action )
+        item.action(line);
+      else
+        cerr << "WARNING: no action for " << item.cmd << " command? "
+             << "Call expert." << endl;
+      break;
+    }
+  }
+  return 0;
+}
+
+//_____________________________________________________________________________
 //  Goes through each line of the config [must have been LoadFile()'d]
 //   and interprets.
 bool OnlineConfig::ParseConfig()
@@ -287,160 +347,75 @@ bool OnlineConfig::ParseConfig()
   if( !fFoundCfg )
     return false;
 
-  uint_t command_cnt = 0;
-  // If statement for each high level command (cut, newpage, etc)
-  for( uint_t i = 0; i < sConfFile.size(); i++ ) {
-    // "newpage" command
-    if( sConfFile[i][0] == "newpage" ) {
-      // sConfFile[i] is first of pair
-      for( auto j = i + 1; j < sConfFile.size(); j++ ) {
-        if( sConfFile[j][0] != "newpage" ) {
-          // Count how many commands within the page
-          command_cnt++;
-        } else break;
-      }
-      pageInfo.emplace_back(i, command_cnt);
-      i += command_cnt;
-      command_cnt = 0;
-    }
-    if( sConfFile[i][0] == "watchfile" ) {
+  // Find "newpage" commands and store their locations and lengths
+  auto first_page = ParsePageInfo(ALL(sConfFile), pageInfo);
+
+  // List of defined commands and corresponding actions
+  vector<CommandDef> cmddefs = {
+    {"watchfile",
+      0, [&]( const VecStr_t& ) {
       fMonitor = true;
-    }
-    if( sConfFile[i][0] == "2DbinsX" ) {
-      hist2D_nBinsX = stoi(sConfFile[i][1]);
-    }
-    if( sConfFile[i][0] == "2DbinsY" ) {
-      hist2D_nBinsY = stoi(sConfFile[i][1]);
-    }
-    if( sConfFile[i][0] == "definecut" ) {
-      if( sConfFile[i].size() > 3 ) {
-        cerr << "cut command has too many arguments" << endl;
-        continue;
-      }
-      cutList.emplace_back(sConfFile[i][1], sConfFile[i][2]);
-    }
-    if( sConfFile[i][0] == "rootfile" ) {
-      if( sConfFile[i].size() != 2 ) {
-        cerr << "WARNING: rootfile command does not have the "
-             << "correct number of arguments"
-             << endl;
-        continue;
-      }
-      if( !rootfilename.empty() ) {
-        cerr << "WARNING: too many rootfile's defined. "
-             << " Will only use the first one."
-             << endl;
-        continue;
-      }
-      rootfilename = ExpandFileName(sConfFile[i][1]);
-      fRunNumber = ExtractRunNumber(sConfFile[i][1]);
-    }
-    if( sConfFile[i][0] == "goldenrootfile" ) {
-      if( sConfFile[i].size() != 2 ) {
-        cerr << "WARNING: goldenfile command does not have the "
-             << "correct number of arguments"
-             << endl;
-        continue;
-      }
-      if( !goldenrootfilename.empty() ) {
-        cerr << "WARNING: too many goldenrootfile's defined. "
-             << " Will only use the first one."
-             << endl;
-        continue;
-      }
-      goldenrootfilename = ExpandFileName(sConfFile[i][1]);
-    }
-    if( sConfFile[i][0] == "protorootfile" ) {
-      if( sConfFile[i].size() != 2 ) {
-        cerr << "WARNING: protorootfile command does not have the "
-             << "correct number of arguments"
-             << endl;
-        continue;
-      }
-      fProtoRootFiles.push_back(ExpandFileName(sConfFile[i][1]));
-    }
-    if( sConfFile[i][0] == "guicolor" ) {
-      if( sConfFile[i].size() != 2 ) {
-        cerr << "WARNING: guicolor command does not have the "
-             << "correct number of arguments (needs 1)"
-             << endl;
-        continue;
-      }
-      if( !guicolor.empty() ) {
-        cerr << "WARNING: too many guicolor's defined. "
-             << " Will only use the first one."
-             << endl;
-        continue;
-      }
-      guicolor = sConfFile[i][1];
-    }
-    if( sConfFile[i][0] == "plotsdir" ) {
-      if( sConfFile[i].size() != 2 ) {
-        cerr << "WARNING: plotsdir command does not have the "
-             << "correct number of arguments (needs 1)"
-             << endl;
-        continue;
-      }
-      if( !plotsdir.empty() ) {
-        cerr << "WARNING: too many plotdir's defined. "
-             << " Will only use the first one."
-             << endl;
-        continue;
-      }
-      plotsdir = ExpandFileName(sConfFile[i][1]);
-    }
-    if( sConfFile[i][0] == "plotFormat" ) {
-      if( sConfFile[i].size() != 2 ) {
-        cerr << "WARNING: plotsdir command does not have the "
-             << "correct number of arguments (needs 1)"
-             << endl;
-        continue;
-      }
-      fPlotFormat = sConfFile[i][1];
-    }
-    if( sConfFile[i][0] == "rootfilespath" ) {
-      if( sConfFile[i].size() != 2 ) {
-        cerr << "WARNING: rootfilespath command does not have the "
-             << "correct number of arguments (needs 1)"
-             << endl;
-        continue;
-      }
-      if( !fRootFilesPath.empty() ) {
-        cerr << "WARNING: duplicate rootfilespath's directoves. "
-             << " Will only use the first one."
-             << endl;
-        continue;
-      }
-      fRootFilesPath = ExpandFileName(sConfFile[i][1]);
-    }
-    if( sConfFile[i][0] == "protoplotfile" ) {
-      if( sConfFile[i].size() != 2 ) {
-        cerr << "WARNING: protoplotfile command does not have the "
-             << "correct number of arguments (needs 1)"
-             << endl;
-        continue;
-      }
-      fProtoPlotFile = ExpandFileName(sConfFile[i][1]);
-    }
-    if( sConfFile[i][0] == "protoimagefile" ) {
-      if( sConfFile[i].size() != 2 ) {
-        cerr << "WARNING: protoimagefile command does not have the "
-             << "correct number of arguments (needs 1)"
-             << endl;
-        continue;
-      }
-      fProtoImageFile = ExpandFileName(sConfFile[i][1]);
-    }
-    if( sConfFile[i][0] == "protomacrofile" ) {
-      if( sConfFile[i].size() != 2 ) {
-        cerr << "WARNING: protomacrofile command does not have the "
-             << "correct number of arguments (needs 1)"
-             << endl;
-        continue;
-      }
-      fProtoMacroFile = ExpandFileName(sConfFile[i][1]);
-    }
-  }
+    }},
+    {"2DbinsX",
+      0, [&]( const VecStr_t& line ) {
+      hist2D_nBinsX = stoi(line[1]);
+    }},
+    {"2DbinsY",
+      0, [&]( const VecStr_t& line ) {
+      hist2D_nBinsY = stoi(line[1]);
+    }},
+    {"definecut",
+      2, [&]( const VecStr_t& line ) {
+      cutList.emplace_back(line[1], line[2]);
+    }},
+    {"rootfile",
+      1, [&]( const VecStr_t& line ) {
+      rootfilename = ExpandFileName(line[1]);
+      fRunNumber = ExtractRunNumber(line[1]);
+    }},
+    {"goldenrootfile",
+      1, [&]( const VecStr_t& line ) {
+      goldenrootfilename = ExpandFileName(line[1]);
+    }},
+    {"protorootfile",
+      1, [&]( const VecStr_t& line ) {
+      fProtoRootFiles.push_back(ExpandFileName(line[1]));
+    }},
+    {"guicolor",
+      1, [&]( const VecStr_t& line ) {
+      guicolor = line[1];
+    }},
+    {"plotsdir",
+      1, [&]( const VecStr_t& line ) {
+      plotsdir = ExpandFileName(line[1]);
+    }},
+    {"plotFormat",
+      1, [&]( const VecStr_t& line ) {
+      fPlotFormat = line[1];
+    }},
+    {"imageFormat",
+      1, [&]( const VecStr_t& line ) {
+      fImageFormat = line[1];
+    }},
+    {"rootfilespath",
+      1, [&]( const VecStr_t& line ) {
+      fRootFilesPath = ExpandFileName(line[1]);
+    }},
+    {"protoplotfile",
+      1, [&]( const VecStr_t& line ) {
+      fProtoPlotFile = ExpandFileName(line[1]);
+    }},
+    {"protoimagefile",
+      1, [&]( const VecStr_t& line ) {
+      fProtoImageFile = ExpandFileName(line[1]);
+    }},
+    {"protomacroimagefile",
+      1, [&]( const VecStr_t& line ) {
+      fProtoMacroImageFile = ExpandFileName(line[1]);
+    }}
+  };
+
+  ParseCommands(sConfFile.begin(), first_page, cmddefs);
 
   if( fVerbosity >= 3 ) {
     cout << "OnlineConfig::ParseConfig()\n";
