@@ -63,11 +63,14 @@ string BasenameStr( string path )
 static pair<ifstream, string>
 OpenInPath( const string& filename, const string& path )
 {
+  string dirname = DirnameStr(filename);
   string foundpath;
+  foundpath.reserve(path.length() + dirname.length() + 1);
   ifstream infile(filename);
   if( !infile ) {
     if( !filename.empty() && filename[0] != '/' ) {
       string trypath;
+      trypath.reserve(path.length() + filename.length() + 1);
       istringstream istr(path);
       while( getline(istr, trypath, ':') ) {
         if( trypath.empty() )
@@ -76,12 +79,15 @@ OpenInPath( const string& filename, const string& path )
         trypath += "/" + filename;
         infile.clear();
         infile.open(trypath);
-        if( infile )
+        if( infile ) {
+          if( dirname != "." )
+            foundpath += "/" + dirname;
           break;
+        }
       }
     }
   } else {
-    foundpath = DirnameStr(filename);
+    foundpath = dirname;
   }
   return make_pair(std::move(infile), std::move(foundpath));
 }
@@ -176,7 +182,6 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
     AppendToPath(cfgpath, env_cfgdir);
   if( fVerbosity > 0 )
     cout << "config file path = " << cfgpath << endl;
-  fConfFilePath = cfgpath;
 
   ifstream infile;
   std::tie(infile, fConfFileDir) = OpenInPath(confFileName, cfgpath);
@@ -188,6 +193,13 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
     return;
   }
   fFoundCfg = true;
+  confFileName = BasenameStr(confFileName);
+
+  // Ensure that fConfFilePath contains any relative path from confFileName
+  if( fConfFileDir != "." && cfgpath.find(fConfFileDir) == string::npos )
+    cfgpath = cfgpath.empty() ? fConfFileDir : fConfFileDir + ":" + cfgpath;
+  fConfFilePath = std::move(cfgpath);
+
   string fullpath = fConfFileDir + "/" + confFileName;
 
   cout << "GUI Configuration loading from " << fullpath << endl;
@@ -773,37 +785,31 @@ void OnlineConfig::GetDrawCommand(
 // user specifies a run number on the command line.
 void OnlineConfig::OverrideRootFile( int runnumber )
 {
-  cout << "Root file defined before was: " << rootfilename << endl;
+  if( !rootfilename.empty() )
+    cout << "Root file defined before was: " << rootfilename << endl;
 
-  ifstream ifs;
-  string fp;
+  string fnmRootPath;
+  AppendToPath(fnmRootPath, fRootFilesPath);
+  auto* envar = getenv("ROOTFILES");
+  if( envar )
+    AppendToPath(fnmRootPath, envar);
+  AppendToPath(fnmRootPath, "rootfiles");
+
   auto protofiles = fProtoRootFiles;
   if( protofiles.empty() )
     protofiles.push_back(rootfilename);
   bool found = false;
   for( auto& protofile: protofiles ) {
+    // try opening protofile in path
     assert(!protofile.empty());  // else error in ParseConfig
     protofile = SubstituteRunNumber(protofile, runnumber);
-    string fnmRootPath;
-    bool with_path = false;
-    if( protofile[0] != '/' ) {
-      // Build path. OpenInPath() will automatically try the current directory
-      // first, so there is no need to add it here.
-      with_path = true;
-      AppendToPath(fnmRootPath, fRootFilesPath);
-      auto* envar = getenv("ROOTFILES");
-      if( envar )
-        AppendToPath(fnmRootPath, envar);
-      AppendToPath(fnmRootPath, "rootfiles");
-
-      cout << " Looking for ROOT file with runnumber " << runnumber
-           << " in " << fnmRootPath << endl;
-    }
-    // try opening protofile in path
+    cout << " Looking for ROOT file with runnumber " << runnumber
+         << " in " << fnmRootPath << endl;
+    ifstream ifs;
+    string fp;
     std::tie(ifs, fp) = OpenInPath(protofile, fnmRootPath);
     if( ifs ) {
-      rootfilename = with_path ? fp + "/" : "";
-      rootfilename += protofile;
+      rootfilename = fp + "/" + BasenameStr(protofile);
       found = true;
       break;
     }
