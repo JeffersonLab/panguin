@@ -56,7 +56,7 @@ string BasenameStr( string path )
 
 //_____________________________________________________________________________
 // Try to open 'filename'. If 'filename' is a relative path (does not start
-// with '/', try to open it in the current directory and, if not found, in
+// with '/'), try opening it in the current directory and, if not found, in
 // any of the directories given in 'path'.
 // Returns a filestream and path string where the file was found. Test the
 // filestream to determine whether the file was successfully opened.
@@ -777,38 +777,43 @@ void OnlineConfig::OverrideRootFile( int runnumber )
 
   ifstream ifs;
   string fp;
-  if( fProtoRootFiles.empty() ) {
-    std::tie(ifs, fp) = OpenInPath(rootfilename, "");
-  } else {
-    for( auto protofile: fProtoRootFiles ) {
-      assert(!protofile.empty());  // else error in ParseConfig
-      SubstituteRunNumber(protofile, 0);
-      string fnmRootPath;
-      if( protofile[0] != '/' ) {
-        // build path
-        AppendToPath(fnmRootPath, fRootFilesPath);
-        auto* envar = getenv("ROOTFILES");
-        if( envar )
-          AppendToPath(fnmRootPath, envar);
-        AppendToPath(fnmRootPath, "./rootfiles");
+  auto protofiles = fProtoRootFiles;
+  if( protofiles.empty() )
+    protofiles.push_back(rootfilename);
+  bool found = false;
+  for( auto& protofile: protofiles ) {
+    assert(!protofile.empty());  // else error in ParseConfig
+    protofile = SubstituteRunNumber(protofile, runnumber);
+    string fnmRootPath;
+    bool with_path = false;
+    if( protofile[0] != '/' ) {
+      // Build path. OpenInPath() will automatically try the current directory
+      // first, so there is no need to add it here.
+      with_path = true;
+      AppendToPath(fnmRootPath, fRootFilesPath);
+      auto* envar = getenv("ROOTFILES");
+      if( envar )
+        AppendToPath(fnmRootPath, envar);
+      AppendToPath(fnmRootPath, "rootfiles");
 
-        cout << " Looking for ROOT file with runnumber " << runnumber
-             << " in " << fnmRootPath << endl;
-      }
-      // try opening protofile in path
-      std::tie(ifs, fp) = OpenInPath(protofile, fnmRootPath);
-      if( ifs ) {
-        rootfilename = fp + protofile;
-        break;
-      }
+      cout << " Looking for ROOT file with runnumber " << runnumber
+           << " in " << fnmRootPath << endl;
+    }
+    // try opening protofile in path
+    std::tie(ifs, fp) = OpenInPath(protofile, fnmRootPath);
+    if( ifs ) {
+      rootfilename = with_path ? fp + "/" : "";
+      rootfilename += protofile;
+      found = true;
+      break;
     }
   }
 
-  if( ifs ) {
+  if( found ) {
     cout << "\t found file " << rootfilename << endl;
   } else {
-    cout << "No ROOT file found. Double check your configurations and files."
-         << "Quitting" << endl;
+    cout << "No ROOT file found. Double check your configurations and files. "
+         << "Quitting ..." << endl;
     exit(1);
   }
 
