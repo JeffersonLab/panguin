@@ -9,6 +9,7 @@
 #include <iomanip>    // quoted, setw, setfill
 #include <cctype>     // isalnum
 #include <algorithm>  // find_if
+#include <regex>
 
 using namespace std;
 
@@ -124,12 +125,18 @@ static string ExpandFileName( string str )
 }
 
 //_____________________________________________________________________________
-// Extract run number from a file name structured as
-//   experiment_optionaltext_runnumber.dat
+// Attempt to extract the run number from a ROOT file name.
+// Since there is no agreed-upon filename pattern, use a simple heuristic
+// that the run number is 4 or 5 digits between an underscore and either
+// another underscore or a period: _12345_ or _1234.
 static int ExtractRunNumber( const string& filename )
 {
-  string temp = filename.substr(filename.rfind('_') + 1);
-  return stoi(temp.substr(0, temp.rfind('.')));
+  regex re("_([0-9]{4,5})[\\._]");
+  smatch sm;
+  if( regex_search(filename, sm, re) && sm.size() > 1)
+    return stoi(sm[1].str());
+  else
+    return 0;
 }
 
 //_____________________________________________________________________________
