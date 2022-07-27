@@ -1243,6 +1243,7 @@ void OnlineGUI::PrintPages()
     gApplication->Terminate();
   } else {
     fFileAlive = kTRUE;
+    runNumber = fConfig.GetRunNumber();
     GetFileObjects();
     GetRootTree();
     GetTreeVars();
