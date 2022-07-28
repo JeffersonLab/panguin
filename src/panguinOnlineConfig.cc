@@ -204,6 +204,22 @@ static int ExtractRunNumber( const string& filename )
 }
 
 //_____________________________________________________________________________
+static int StrToIntRange( const string& str, int lo, int hi, const string& name )
+{
+  int i = stoi(str);
+  if( lo >= hi )
+    return i;
+  if( i < lo ) {
+    cerr << name << " = " << i << " too small, setting to " << lo << endl;
+    i = lo;
+  } else if ( i > hi ) {
+    cerr << name << " = " << i << " too large, setting to " << hi << endl;
+    i = hi;
+  }
+  return i;
+}
+
+//_____________________________________________________________________________
 // Constructor.  Without an argument, use default config
 OnlineConfig::OnlineConfig()
   : OnlineConfig("default.cfg") {}
@@ -229,7 +245,7 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   , hist2D_nBinsX(0)
   , hist2D_nBinsY(0)
   , fRunNumber(opts.run)
-  , fRunNoWidth(5)
+  , fRunNoWidth(0)
   , fPageNoWidth(2)
   , fPadNoWidth(2)
   , fPrintOnly(opts.printonly)
@@ -497,6 +513,12 @@ bool OnlineConfig::ParseConfig()
     {"protomacroimagefile",
       1, [&]( const VecStr_t& line ) {
       fProtoMacroImageFile = ExpandFileName(line[1]);
+    }},
+    {"ndigits",
+      3, [&]( const VecStr_t& line ) {
+      fRunNoWidth = StrToIntRange(line[1], 0, 8, "ndigits run number width");
+      fPageNoWidth = StrToIntRange(line[2], 0, 5, "ndigits page number width");
+      fPadNoWidth = StrToIntRange(line[3], 0, 3, "ndigits pad number width");
     }}
   };
 
