@@ -19,6 +19,7 @@ using PageInfo_t = std::vector<std::pair<uint_t, uint_t>>;
 
 std::string ReplaceAll(
   std::string str, const std::string& ostr, const std::string& nstr );
+bool EndsWith( const std::string& str, const std::string& tail );
 
 class OnlineConfig {
   // Class that takes care of the config file
@@ -35,6 +36,7 @@ class OnlineConfig {
   std::string fProtoMacroImageFile;
   std::string fPlotFormat;        // File format for saved plots (default: pdf)
   std::string fImageFormat;       // File format for saved image files (default: png)
+  std::string fImagesDir;         // Where to save individual images
   std::string plotsdir;           // Where to save plots
   // the config file, in memory
   ConfLines_t sConfFile;
@@ -76,6 +78,7 @@ public:
     std::string plotfmt;
     std::string imgfmt;
     std::string plotsdir;
+    std::string imgdir;
     int run{0};
     int verbosity{0};
     bool printonly{false};
@@ -107,6 +110,7 @@ public:
   const std::string& GetPlotFormat() const { return fPlotFormat; }
   const std::string& GetImageFormat() const { return fImageFormat; }
   const std::string& GetPlotsDir() const { return plotsdir; };
+  const std::string& GetImagesDir() const { return fImagesDir; };
   int GetVerbosity() const { return fVerbosity; }
   int GetRunNoWidth() const { return fRunNoWidth; }
   int GetPageNoWidth() const { return fPageNoWidth; }

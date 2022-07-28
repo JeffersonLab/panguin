@@ -31,6 +31,14 @@ string ReplaceAll( string str, const string& ostr, const string& nstr )
 }
 
 //_____________________________________________________________________________
+// Check if given string 'str' ends with 'tail'
+bool EndsWith( const string& str, const string& tail )
+{
+  auto sl = str.length(), tl = tail.length();
+  return sl >= tl && str.substr(sl - tl, tl) == tail;
+}
+
+//_____________________________________________________________________________
 // Get directory name part of 'path'
 string DirnameStr( string path )
 {
@@ -131,6 +139,56 @@ static string ExpandFileName( string str )
 }
 
 //_____________________________________________________________________________
+// Change file extension of 'path' to 'ext', or add 'ext' if none exists
+static void ChangeExtension( string& path, const string& ext )
+{
+  auto pos = path.rfind('.');
+  if( pos == string::npos )
+    path += "." + ext;
+  else
+    path.replace(pos + 1, path.length() - pos - 1, ext);
+}
+
+//_____________________________________________________________________________
+// Check if 'var' is non-empty. If so, print message and return true.
+static bool IsSet( const string& var, const string& name )
+{
+  if( var.empty() )
+    return false;
+  cerr << "Warning: Command line option for " << name << " overrides value in "
+       << "configuration file." << endl;
+  return true;
+}
+
+//_____________________________________________________________________________
+static bool PrependDir( const string& dir, string& path,
+                        const string& name1, const string& name2 )
+{
+  if( path.empty() )
+    return false;
+  if( path[0] == '/' ) {
+    cerr << "Warning: ignoring " << name1 << " because " << name2 << " has "
+         << "an absolute path" << endl;
+    return false;
+  }
+  path = dir + "/" + path;
+  return true;
+}
+
+//_____________________________________________________________________________
+static void OverrideFormat( string& proto, const string& fmt,
+                            const string& name1, const string& name2 )
+{
+  if( !EndsWith(proto, fmt) &&
+      !(EndsWith(proto, "%E") ||
+        EndsWith(proto, "%F")) ) {
+    cerr << "Warning: overriding " << name1 << " of " << name2 << " with "
+         << fmt << endl;
+    ChangeExtension( proto, fmt );
+  }
+}
+
+//_____________________________________________________________________________
 // Attempt to extract the run number from a ROOT file name.
 // Since there is no agreed-upon filename pattern, use a simple heuristic
 // that the run number is 4 or 5 digits between an underscore and either
@@ -161,6 +219,7 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   : confFileName(opts.cfgfile)
   , fPlotFormat(opts.plotfmt)
   , fImageFormat(opts.imgfmt)
+  , fImagesDir(opts.imgdir)
   , plotsdir(opts.plotsdir)
   , fFoundCfg(false)
   , fMonitor(false)
@@ -382,8 +441,9 @@ bool OnlineConfig::ParseConfig()
     }},
     {"rootfile",
       1, [&]( const VecStr_t& line ) {
-      rootfilename = ExpandFileName(line[1]);
-      fRunNumber = ExtractRunNumber(line[1]);
+      if( !IsSet(rootfilename, "rootfile") )
+        rootfilename = ExpandFileName(line[1]);
+      fRunNumber = ExtractRunNumber(rootfilename);
     }},
     {"goldenrootfile",
       1, [&]( const VecStr_t& line ) {
@@ -397,17 +457,25 @@ bool OnlineConfig::ParseConfig()
       1, [&]( const VecStr_t& line ) {
       guicolor = line[1];
     }},
-    {"plotsdir",
+    {"plotsDir",
       1, [&]( const VecStr_t& line ) {
-      plotsdir = ExpandFileName(line[1]);
+      if( !IsSet(plotsdir, "plotsDir") )
+        plotsdir = ExpandFileName(line[1]);
+    }},
+    {"imagesDir",
+      1, [&]( const VecStr_t& line ) {
+      if( !IsSet(fImagesDir, "imagessDir") )
+        fImagesDir = ExpandFileName(line[1]);
     }},
     {"plotFormat",
       1, [&]( const VecStr_t& line ) {
-      fPlotFormat = line[1];
+      if( !IsSet(fPlotFormat, "plotFormat") )
+        fPlotFormat = line[1];
     }},
     {"imageFormat",
       1, [&]( const VecStr_t& line ) {
-      fImageFormat = line[1];
+      if( !IsSet(fImageFormat, "imageFormat") )
+        fImageFormat = line[1];
     }},
     {"rootfilespath",
       1, [&]( const VecStr_t& line ) {
@@ -416,6 +484,10 @@ bool OnlineConfig::ParseConfig()
     {"protoplotfile",
       1, [&]( const VecStr_t& line ) {
       fProtoPlotFile = ExpandFileName(line[1]);
+    }},
+    {"protoplotpagefile",
+      1, [&]( const VecStr_t& line ) {
+      fProtoPlotPageFile = ExpandFileName(line[1]);
     }},
     {"protoimagefile",
       1, [&]( const VecStr_t& line ) {
@@ -450,17 +522,44 @@ bool OnlineConfig::ParseConfig()
   }
 
   // Set fallback defaults
+  if( fPlotFormat.empty() )
+    fPlotFormat = "pdf";
+  if( fImageFormat.empty() )
+    fImageFormat = "png";
   if( fProtoPlotFile.empty() )
-    fProtoPlotFile = "summaryPlots_%R_%C.pdf";
+    fProtoPlotFile = "summaryPlots_%R_%C.%E";
   if( fProtoPlotPageFile.empty() )
-    fProtoPlotPageFile = "summaryPlots_%R_page%P_%C.pdf";
+    fProtoPlotPageFile = "summaryPlots_%R_page%P_%C.%E";
   if( fProtoImageFile.empty() )
-    fProtoImageFile = "hydra_%R_%V_%C.png";
+    fProtoImageFile = "hydra_%R_%V_%C.%F";
   if( fProtoMacroImageFile.empty() )
-    fProtoMacroImageFile = "hydra_%R_page%P_pad%D_%C.png";
+    fProtoMacroImageFile = "hydra_%R_page%P_pad%D_%C.%F";
+
+  // Prepend output directory to plot file prototypes
+  if( !plotsdir.empty() ) {
+    bool needit =
+      PrependDir(plotsdir, fProtoPlotFile, "plotsdir", "protoplotfile") ||
+      PrependDir(plotsdir, fProtoPlotPageFile, "plotsdir", "protoplotpagefile");
+    if( !needit )
+      plotsdir.clear();  // Don't create possibly spurious directory
+  }
+  // Prepend output directory to image file prototypes
+  if( !fImagesDir.empty() ) {
+    bool needit =
+      PrependDir(fImagesDir, fProtoImageFile, "imagesdir", "protoimagefile") ||
+      PrependDir(fImagesDir, fProtoMacroImageFile, "imagesdir", "protomacroimagefile");
+    if( !needit )
+      fImagesDir.clear();  // Don't create possibly spurious directory
+  }
+
+  // Honor requested plot format
+  OverrideFormat(fProtoPlotFile, fPlotFormat, "plotFormat", "protoplotfile");
+  OverrideFormat(fProtoPlotPageFile, fPlotFormat, "plotFormat", "protoplotpagefile");
+  // Honor requested image format
+  OverrideFormat(fProtoImageFile, fImageFormat, "imageFormat", "protoimagefile");
+  OverrideFormat(fProtoMacroImageFile, fImageFormat, "imageFormat", "protomacroimagefile");
 
   return true;
-
 }
 
 //_____________________________________________________________________________

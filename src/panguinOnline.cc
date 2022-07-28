@@ -129,7 +129,10 @@ string OnlineGUI::SubstitutePlaceholders( string str, const string& var ) const
   if( fConfig.GetPadNoWidth() > 0 )
     ostr << setw(fConfig.GetPadNoWidth()) << setfill('0');
   ostr << current_pad;
-  return ReplaceAll(str, "%D", ostr.str());
+  str = ReplaceAll(str, "%D", ostr.str());
+  str = ReplaceAll(str, "%E", fConfig.GetPlotFormat());
+  str = ReplaceAll(str, "%F", fConfig.GetImageFormat());
+  return str;
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -1296,7 +1299,8 @@ void OnlineGUI::PrintPages()
   }
   //  pagehead += ": ";
 
-  if( MakePlotsDir(fConfig.GetPlotsDir()) )
+  if( MakePlotsDir(fConfig.GetPlotsDir()) ||
+      MakePlotsDir(fConfig.GetImagesDir()) )
     gApplication->Terminate();
 
   gStyle->SetPalette(1);
