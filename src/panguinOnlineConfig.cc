@@ -217,6 +217,8 @@ OnlineConfig::OnlineConfig( const string& config_file_name )
 //_____________________________________________________________________________
 OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   : confFileName(opts.cfgfile)
+  , rootfilename(opts.rootfile)
+  , fRootFilesPath(opts.rootdir)
   , fPlotFormat(opts.plotfmt)
   , fImageFormat(opts.imgfmt)
   , fImagesDir(opts.imgdir)
@@ -443,7 +445,6 @@ bool OnlineConfig::ParseConfig()
       1, [&]( const VecStr_t& line ) {
       if( !IsSet(rootfilename, "rootfile") )
         rootfilename = ExpandFileName(line[1]);
-      fRunNumber = ExtractRunNumber(rootfilename);
     }},
     {"goldenrootfile",
       1, [&]( const VecStr_t& line ) {
@@ -479,7 +480,7 @@ bool OnlineConfig::ParseConfig()
     }},
     {"rootfilespath",
       1, [&]( const VecStr_t& line ) {
-      fRootFilesPath = ExpandFileName(line[1]);
+      AppendToPath(fRootFilesPath, ExpandFileName(line[1]));
     }},
     {"protoplotfile",
       1, [&]( const VecStr_t& line ) {
@@ -512,6 +513,13 @@ bool OnlineConfig::ParseConfig()
 
   cout << "Number of pages defined = " << GetPageCount() << endl;
   cout << "Number of cuts defined = " << cutList.size() << endl;
+
+  if( !rootfilename.empty() ) {
+    rootfilename = ExpandFileName(rootfilename);
+    cout << "Using ROOT file " << rootfilename << endl;
+    fRunNumber = ExtractRunNumber(rootfilename);
+    cout << "Run number extracted from file name = " << fRunNumber << endl;
+  }
 
   if( fMonitor )
     cout << "Will periodically update plots" << endl;
@@ -894,11 +902,8 @@ void OnlineConfig::OverrideRootFile( int runnumber )
     AppendToPath(fnmRootPath, envar);
   AppendToPath(fnmRootPath, "rootfiles");
 
-  auto protofiles = fProtoRootFiles;
-  if( protofiles.empty() )
-    protofiles.push_back(rootfilename);
   bool found = false;
-  for( auto& protofile: protofiles ) {
+  for( auto& protofile: fProtoRootFiles ) {
     // try opening protofile in path
     assert(!protofile.empty());  // else error in ParseConfig
     protofile = SubstituteRunNumber(protofile, runnumber);
@@ -914,13 +919,12 @@ void OnlineConfig::OverrideRootFile( int runnumber )
     }
   }
 
-  if( found ) {
-    cout << "\t found file " << rootfilename << endl;
-  } else {
+  if( !found ) {
     cout << "No ROOT file found. Double check your configurations and files. "
          << "Quitting ..." << endl;
     exit(1);
   }
+  cout << "\t found file " << rootfilename << endl;
 
   fRunNumber = runnumber;
 }

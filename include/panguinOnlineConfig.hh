@@ -75,6 +75,8 @@ public:
   struct CmdLineOpts {
     std::string cfgfile;
     std::string cfgdir;
+    std::string rootfile;
+    std::string rootdir;
     std::string plotfmt;
     std::string imgfmt;
     std::string plotsdir;

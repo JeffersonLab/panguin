@@ -18,9 +18,9 @@ void online( const OnlineConfig::CmdLineOpts& opts );
 int main( int argc, char** argv )
 {
   tStart = clock();
-  string cfgfile{"default.cfg"};
+  string cfgfile{"default.cfg"}, rootfile;
   string plotfmt, imgfmt;
-  string cfgdir, pltdir, imgdir;
+  string cfgdir, rootdir, pltdir, imgdir;
   int run{0};
   int verbosity{0};
   bool printonly{false};
@@ -31,23 +31,26 @@ int main( int argc, char** argv )
 
   CLI::App cli("panguin: configurable ROOT data visualization tool");
 
-  cli.add_option("-f,--file", cfgfile,
+  cli.add_option("-f,--config-file", cfgfile,
                  "Job configuration file")
     ->capture_default_str()->type_name("<file name>");
   cli.add_option("-r,--run", run,
                  "Run number")
     ->type_name("<run number>");
-  cli.add_option("-v,--verbosity", verbosity,
-                 "Set verbosity level (>=0)")
-    ->type_name("<level>");
-  cli.add_option("-C,--config-dir", cfgdir,
-                 "Configuration directory")
-    ->type_name("<dir>");
+  cli.add_option("-R,--root-file", rootfile,
+                 "ROOT file to process")
+    ->type_name("<file name>");
   cli.add_flag("-P,-b,--batch", printonly,
                "No GUI. Save plots to summary file(s)");
   cli.add_option("-E,--plot-format", plotfmt,
                  "Plot format (pdf, png, jpg ...)")
     ->type_name("<fmt>");
+  cli.add_option("-C,--config-dir", cfgdir,
+                 "Configuration directory or path (: separated)")
+    ->type_name("<dir>");
+  cli.add_option("--root-dir", rootdir,
+                 "ROOT files directory or path (: separated)")
+    ->type_name("<dir>");
   cli.add_option("-O,--plots-dir", pltdir,
                  "Output directory for summary plots")
     ->type_name("<dir>");
@@ -59,6 +62,9 @@ int main( int argc, char** argv )
   cli.add_option("-H,--images-dir", imgdir,
                  "Output directory for individual images (default: plots-dir)")
     ->type_name("<dir>");
+  cli.add_option("-v,--verbosity", verbosity,
+                 "Set verbosity level (>=0)")
+    ->type_name("<level>");
   cli.set_version_flag("-V,--version", PANGUIN_VERSION);
 
   CLI11_PARSE(cli, argc, argv);
@@ -92,10 +98,8 @@ int main( int argc, char** argv )
   }
 
   TApplication theApp("panguin2", &argc, argv, nullptr, -1);
-  online(OnlineConfig::CmdLineOpts{
-    cfgfile, cfgdir, plotfmt, imgfmt, pltdir, imgdir, run, verbosity,
-    printonly, saveImages}
-  );
+  online({cfgfile, cfgdir, rootfile, rootdir, plotfmt, imgfmt, pltdir, imgdir,
+          run, verbosity, printonly, saveImages});
   theApp.Run();
 
   cout << "Done. Time passed: "
@@ -128,8 +132,16 @@ void online( const OnlineConfig::CmdLineOpts& opts )
     macropath = ".:" + guidir + ":" + macropath;
   gROOT->SetMacroPath(macropath);
 
-  if( opts.run != 0 )
+  if( opts.run != 0 ) {
+    if( !opts.rootfile.empty() )
+      cerr << "Warning: Both ROOT file and run number specified. "
+           << "ROOT file will be ignored." << endl;
+    if( fconfig.GetRunNumber() != 0 && fconfig.GetRunNumber() != opts.run )
+      cerr << "Warning: Run number extracted from ROOT file name differs from "
+              "the one requested on the command line: "
+           << fconfig.GetRunNumber() << " vs. " << opts.run << endl;
     fconfig.OverrideRootFile(opts.run);
+  }
 
   cout << "Finished processing cfg. Init OnlineGUI. Time passed: "
        << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
