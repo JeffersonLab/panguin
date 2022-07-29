@@ -280,15 +280,18 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   string fullpath = fConfFileDir + "/" + confFileName;
 
   cout << "GUI Configuration loading from " << fullpath << endl;
+  int ret = 0;
   try {
-    auto ret = LoadFile(infile, fullpath);
-    if( ret != 0 )
+    ret = LoadFile(infile, fullpath);
+    if( ret < 0 )
       throw std::runtime_error(
         "Error loading configuration file \"" + fullpath + "\"");
   } catch( const std::runtime_error& e ) {
     cerr << e.what() << endl;
     fFoundCfg = false;
   }
+  if( ret > 0 )
+    cout << sConfFile.size() << " total configuration lines read" << endl;
 }
 
 //_____________________________________________________________________________
@@ -308,12 +311,13 @@ int OnlineConfig::CheckLoadIncludeFile(
     std::tie(ifs, incdir) = OpenInPath(fname, fConfFilePath);
     if( !ifs )
       throw std::runtime_error("Error opening include file \"" + fname + "\"");
+    fname = incdir + "/" + BasenameStr(fname);
     if( fVerbosity >= 1 )
       cout << "Loading include file " << std::quoted(fname) << endl;
     auto ret = LoadFile(ifs, fname);
-    if( ret != 0 )
+    if( ret < 0 )
       throw std::runtime_error("Error loading include file \"" + fname + "\"");
-    return 1;
+    return 1 + ret;
   }
   return 0;
 }
@@ -321,14 +325,16 @@ int OnlineConfig::CheckLoadIncludeFile(
 //_____________________________________________________________________________
 // Reads in the Config File, and makes the proper calls to put
 //  the information contained into memory.
+// Returns -1 on error, otherwise the number of include files loaded (usually 0).
 int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename )
 {
   if( !infile )
-    return 1;
+    return -1;
 
   const char comment = '#';
   vector<string> strvect;
   string sinput, sline;
+  int loaded_here = 0, ret = 0;
   while( getline(infile, sline) ) {
     if( sline.empty() || sline.find(comment) != string::npos ) continue;
     istringstream istr(sline);
@@ -336,9 +342,13 @@ int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename )
     strvect.clear();
     while( istr >> field )
       strvect.push_back(std::move(field));
-    if( CheckLoadIncludeFile(sline, strvect) )
+    int st;
+    if( (st = CheckLoadIncludeFile(sline, strvect)) > 0 ) {
+      ret += st;
       continue;
+    }
     sConfFile.push_back(std::move(strvect));
+    ++loaded_here;
   }
 
   if( fVerbosity >= 1 ) {
@@ -350,11 +360,9 @@ int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename )
       cout << endl;
     }
   }
+  cout << loaded_here << " lines read from " << filename << endl;
 
-  cout << setw(6) << sConfFile.size() << " lines read from "
-       << filename << endl;
-
-  return 0;
+  return ret;
 }
 
 //_____________________________________________________________________________
