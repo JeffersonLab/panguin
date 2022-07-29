@@ -467,7 +467,7 @@ bool OnlineConfig::ParseConfig()
     }},
     {"rootfile",
       1, [&]( const VecStr_t& line ) {
-      if( !IsSet(rootfilename, "rootfile") )
+      if( !IsSet(rootfilename, line[0]) )
         rootfilename = ExpandFileName(line[1]);
     }},
     {"goldenrootfile",
@@ -482,24 +482,24 @@ bool OnlineConfig::ParseConfig()
       1, [&]( const VecStr_t& line ) {
       guicolor = line[1];
     }},
-    {"plotsDir",
+    {"plotsdir",
       1, [&]( const VecStr_t& line ) {
-      if( !IsSet(plotsdir, "plotsDir") )
+      if( !IsSet(plotsdir, line[0]) )
         plotsdir = ExpandFileName(line[1]);
     }},
-    {"imagesDir",
+    {"imagesdir",
       1, [&]( const VecStr_t& line ) {
-      if( !IsSet(fImagesDir, "imagessDir") )
+      if( !IsSet(fImagesDir, line[0]) )
         fImagesDir = ExpandFileName(line[1]);
     }},
     {"plotFormat",
       1, [&]( const VecStr_t& line ) {
-      if( !IsSet(fPlotFormat, "plotFormat") )
+      if( !IsSet(fPlotFormat, line[0]) )
         fPlotFormat = line[1];
     }},
     {"imageFormat",
       1, [&]( const VecStr_t& line ) {
-      if( !IsSet(fImageFormat, "imageFormat") )
+      if( !IsSet(fImageFormat, line[0]) )
         fImageFormat = line[1];
     }},
     {"rootfilespath",
@@ -580,6 +580,8 @@ bool OnlineConfig::ParseConfig()
       PrependDir(plotsdir, fProtoPlotPageFile, "plotsdir", "protoplotpagefile");
     if( !needit )
       plotsdir.clear();  // Don't create possibly spurious directory
+    if( fImagesDir.empty() )
+      fImagesDir = plotsdir;
   }
   // Prepend output directory to image file prototypes
   if( !fImagesDir.empty() ) {
