@@ -1265,6 +1265,7 @@ void OnlineGUI::PrintPages()
            << endl;
       doGolden = kFALSE;
       fGoldenFile = nullptr;
+      fRootFile->cd();
     } else {
       doGolden = kTRUE;
     }
