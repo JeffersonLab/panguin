@@ -53,7 +53,7 @@ endif()
 # CLI11 command line parser
 file(DOWNLOAD
   "https://github.com/CLIUtils/CLI11/releases/download/v2.2.0/CLI11.hpp"
-  "CLI11.hpp"
+  "${CMAKE_BINARY_DIR}/CLI11.hpp"
   EXPECTED_HASH
     SHA256=e0bd8d113ed526ca9a86fafa8f7e0c51dc9d20821c4d0fd3a8697f21c049722c
   STATUS _ret
@@ -101,5 +101,5 @@ add_custom_target(panguin DEPENDS panguin-bin)
 #----------------------------------------------------------------------------
 # Install the executable to 'bin' directory under CMAKE_INSTALL_PREFIX
 #
-#install(TARGETS panguin-bin DESTINATION ${CMAKE_INSTALL_BINDIR})
-#install(TARGETS panguin-lib DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS panguin-bin DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS panguin-lib DESTINATION ${CMAKE_INSTALL_LIBDIR})
