@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 
 # Name of this project
-project(panguin LANGUAGES CXX)
+project(panguin LANGUAGES CXX VERSION 2.0)
 
 # Install in GNU-style directory layout  (copied from japan/CMakeLists.txt)
 include(GNUInstallDirs)

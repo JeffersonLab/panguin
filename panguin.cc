@@ -8,7 +8,7 @@
 #include <ctime>
 #include <string>
 
-#define PANGUIN_VERSION "1.0"
+#define PANGUIN_VERSION "Panguin version 2.0 (30-Jul-2022)"
 
 using namespace std;
 
