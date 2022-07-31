@@ -12,12 +12,10 @@
 
 using namespace std;
 
-clock_t tStart;
 void online( const OnlineConfig::CmdLineOpts& opts );
 
 int main( int argc, char** argv )
 {
-  tStart = clock();
   string cfgfile{"default.cfg"}, rootfile;
   string plotfmt, imgfmt;
   string cfgdir, rootdir, pltdir, imgdir;
@@ -25,9 +23,6 @@ int main( int argc, char** argv )
   int verbosity{0};
   bool printonly{false};
   bool saveImages{false};
-
-  cout << "Starting processing arg. Time passed: "
-       << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
 
   CLI::App cli("panguin: configurable ROOT data visualization tool");
 
@@ -77,17 +72,9 @@ int main( int argc, char** argv )
 
   if( verbosity <= 0 ) {
     verbosity = 0;
-    cout << "Verbosity level set to " << verbosity << endl;
-    cout << "Job config file: " << cfgfile << endl;
-    cout << "Run number: " << run << endl;
-    cout << "Config dir: " << cfgdir << endl;
   } else if( verbosity > 0 ) {
     cout << cli.config_to_str(true, false);
   }
-
-  cout << "Finished processing args. Time passed: "
-       << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
-
 
   if( !gSystem->AccessPathName("./rootlogon.C") ) {
     gROOT->ProcessLine(".x rootlogon.C");
@@ -102,9 +89,6 @@ int main( int argc, char** argv )
           run, verbosity, printonly, saveImages});
   theApp.Run();
 
-  cout << "Done. Time passed: "
-       << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
-
   return 0;
 }
 
@@ -117,9 +101,6 @@ void online( const OnlineConfig::CmdLineOpts& opts )
       gROOT->SetBatch();
     }
   }
-
-  cout << "Starting processing cfg. Time passed: "
-       << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
 
   OnlineConfig fconfig(opts);
   if( !fconfig.ParseConfig() )
@@ -143,12 +124,5 @@ void online( const OnlineConfig::CmdLineOpts& opts )
     fconfig.OverrideRootFile(opts.run);
   }
 
-  cout << "Finished processing cfg. Init OnlineGUI. Time passed: "
-       << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
-
   new OnlineGUI(std::move(fconfig));
-
-  cout << "Finished init OnlineGUI. Time passed: "
-       << (double) ((clock() - tStart) / CLOCKS_PER_SEC) << " s!" << endl;
-
 }
