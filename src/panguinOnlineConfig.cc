@@ -468,7 +468,7 @@ bool OnlineConfig::ParseConfig()
     {"rootfile",
       1, [&]( const VecStr_t& line ) {
       if( !IsSet(rootfilename, line[0]) )
-        rootfilename = ExpandFileName(line[1]);
+        rootfilename = line[1];
     }},
     {"goldenrootfile",
       1, [&]( const VecStr_t& line ) {
@@ -485,12 +485,12 @@ bool OnlineConfig::ParseConfig()
     {"plotsdir",
       1, [&]( const VecStr_t& line ) {
       if( !IsSet(plotsdir, line[0]) )
-        plotsdir = ExpandFileName(line[1]);
+        plotsdir = line[1];
     }},
     {"imagesdir",
       1, [&]( const VecStr_t& line ) {
       if( !IsSet(fImagesDir, line[0]) )
-        fImagesDir = ExpandFileName(line[1]);
+        fImagesDir = line[1];
     }},
     {"plotFormat",
       1, [&]( const VecStr_t& line ) {
@@ -550,6 +550,10 @@ bool OnlineConfig::ParseConfig()
     fRunNumber = ExtractRunNumber(rootfilename);
     cout << "Run number extracted from file name = " << fRunNumber << endl;
   }
+  if( !plotsdir.empty() )
+    plotsdir = ExpandFileName(plotsdir);
+  if( !fImagesDir.empty() )
+    fImagesDir = ExpandFileName(fImagesDir);
 
   if( fMonitor )
     cout << "Will periodically update plots" << endl;
@@ -575,20 +579,22 @@ bool OnlineConfig::ParseConfig()
 
   // Prepend output directory to plot file prototypes
   if( !plotsdir.empty() ) {
-    bool needit =
-      PrependDir(plotsdir, fProtoPlotFile, "plotsdir", "protoplotfile") ||
-      PrependDir(plotsdir, fProtoPlotPageFile, "plotsdir", "protoplotpagefile");
-    if( !needit )
+    bool b1 = PrependDir(plotsdir, fProtoPlotFile, "plotsdir",
+                         "protoplotfile");
+    bool b2 = PrependDir(plotsdir, fProtoPlotPageFile, "plotsdir",
+                         "protoplotpagefile");
+    if( !(b1 || b2) )
       plotsdir.clear();  // Don't create possibly spurious directory
     if( fImagesDir.empty() )
       fImagesDir = plotsdir;
   }
   // Prepend output directory to image file prototypes
   if( !fImagesDir.empty() ) {
-    bool needit =
-      PrependDir(fImagesDir, fProtoImageFile, "imagesdir", "protoimagefile") ||
-      PrependDir(fImagesDir, fProtoMacroImageFile, "imagesdir", "protomacroimagefile");
-    if( !needit )
+    bool b1 = PrependDir(fImagesDir, fProtoImageFile, "imagesdir",
+                         "protoimagefile");
+    bool b2 = PrependDir(fImagesDir, fProtoMacroImageFile, "imagesdir",
+                         "protomacroimagefile");
+    if( !(b1 || b2) )
       fImagesDir.clear();  // Don't create possibly spurious directory
   }
 

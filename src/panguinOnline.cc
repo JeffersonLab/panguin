@@ -976,8 +976,10 @@ void OnlineGUI::SaveImage( TObject* o, const cmdmap_t& command ) const
       SetupPad(command);
       const char* opt = getMapVal(command, "drawopt").c_str();
       o->Draw(opt);
-      c->SaveAs(
-        SubstitutePlaceholders(fConfig.GetProtoImageFile(), var).c_str());
+      auto outfile = SubstitutePlaceholders(fConfig.GetProtoImageFile(), var);
+      auto outdir = DirnameStr(outfile);
+      if( MakePlotsDir(outdir) == 0 )
+        c->SaveAs(outfile.c_str());
     }
   }
 }
@@ -987,9 +989,11 @@ void OnlineGUI::SaveMacroImage( const cmdmap_t& drawcommand )
   if( fSaveImages ) {
     auto c = MakeCanvas();
     MacroDraw(drawcommand);
-    c->SaveAs(SubstitutePlaceholders(
-      fConfig.GetProtoMacroImageFile(), getMapVal(drawcommand, "macro")
-    ).c_str());
+    auto outfile = SubstitutePlaceholders(
+      fConfig.GetProtoMacroImageFile(), getMapVal(drawcommand, "macro"));
+    auto outdir = DirnameStr(outfile);
+    if( MakePlotsDir(outdir) == 0 )
+      c->SaveAs(outfile.c_str());
     // Switch back to main canvas for subsequent MacroDraw call
     fCanvas->cd(current_pad);
   }
@@ -1277,20 +1281,23 @@ void OnlineGUI::PrintPages()
   fCanvas = new TCanvas("fCanvas", "trythis", 1000, 800);
   auto* lt = new TLatex();
 
-  TString plotsdir = fConfig.GetPlotsDir();
-  if( plotsdir.IsNull() ) plotsdir = ".";
-
   Bool_t pagePrint = kFALSE;
   TString printFormat = fConfig.GetPlotFormat();
   cout << "Plot Format = " << printFormat << endl;
-  if( printFormat.IsNull() ) printFormat = "pdf";
-  if( printFormat != "pdf" ) pagePrint = kTRUE;
+  if( printFormat.IsNull() )
+    printFormat = "pdf";
+  else if( printFormat != "pdf" )
+    pagePrint = kTRUE;
 
   string protofilename = pagePrint ? fConfig.GetProtoPlotPageFile()
                                    : fConfig.GetProtoPlotFile();
   TString filename;
-  if( !pagePrint )
+  if( !pagePrint ) {
     filename = SubstitutePlaceholders(protofilename);
+    auto outdir = DirnameStr(filename.Data());
+    if( MakePlotsDir(outdir) )
+      gApplication->Terminate();
+  }
 
   TString pagehead = "Summary Plots";
   if( runNumber != 0 ) {
@@ -1299,10 +1306,6 @@ void OnlineGUI::PrintPages()
     pagehead += ")";
   }
   //  pagehead += ": ";
-
-  if( MakePlotsDir(fConfig.GetPlotsDir()) ||
-      MakePlotsDir(fConfig.GetImagesDir()) )
-    gApplication->Terminate();
 
   gStyle->SetPalette(1);
   //gStyle->SetTitleX(0.15);
@@ -1325,6 +1328,9 @@ void OnlineGUI::PrintPages()
       filename = SubstitutePlaceholders(protofilename);
       cout << "Printing page " << current_page
            << " to file = " << filename << endl;
+      auto outdir = DirnameStr(filename.Data());
+      if( MakePlotsDir(outdir) )
+        gApplication->Terminate();
     }
     fCanvas->Print(filename);
   }
