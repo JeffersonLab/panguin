@@ -62,6 +62,9 @@ class OnlineConfig {
                             const VecStr_t& strvect );
 
   struct CommandDef {
+    CommandDef( std::string c, size_t n,
+                std::function<void(const VecStr_t&)> a )
+      : cmd(std::move(c)), narg(n), action(std::move(a)) {}
     std::string cmd;
     size_t narg = 0;
     std::function<void(const VecStr_t&)> action = nullptr;
@@ -73,6 +76,25 @@ class OnlineConfig {
 
 public:
   struct CmdLineOpts {
+    explicit CmdLineOpts(std::string f)
+      : cfgfile(std::move(f))
+    {}
+    CmdLineOpts(std::string f, std::string d, std::string rf, std::string rd,
+                std::string pf, std::string ifm, std::string pd,
+                std::string id, int rn, int v, bool po, bool si)
+      : cfgfile(std::move(f))
+      , cfgdir(std::move(d))
+      , rootfile(std::move(rf))
+      , rootdir(std::move(rd))
+      , plotfmt(std::move(pf))
+      , imgfmt(std::move(ifm))
+      , plotsdir(std::move(pd))
+      , imgdir(std::move(id))
+      , run(rn)
+      , verbosity(v)
+      , printonly(po)
+      , saveimages(si)
+    {}
     std::string cfgfile;
     std::string cfgdir;
     std::string rootfile;

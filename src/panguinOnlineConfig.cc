@@ -68,13 +68,14 @@ string BasenameStr( string path )
 // any of the directories given in 'path'.
 // Returns a filestream and path string where the file was found. Test the
 // filestream to determine whether the file was successfully opened.
-static pair<ifstream, string>
-OpenInPath( const string& filename, const string& path )
+static string
+OpenInPath( const string& filename, const string& path, ifstream& infile )
 {
   string dirname = DirnameStr(filename);
   string foundpath;
   foundpath.reserve(path.length() + dirname.length() + 1);
-  ifstream infile(filename);
+  infile.clear();
+  infile.open(filename);
   if( !infile ) {
     if( !filename.empty() && filename[0] != '/' ) {
       string trypath;
@@ -97,7 +98,7 @@ OpenInPath( const string& filename, const string& path )
   } else {
     foundpath = dirname;
   }
-  return make_pair(std::move(infile), std::move(foundpath));
+  return foundpath;
 }
 
 //_____________________________________________________________________________
@@ -261,7 +262,7 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
     cout << "config file path = " << cfgpath << endl;
 
   ifstream infile;
-  std::tie(infile, fConfFileDir) = OpenInPath(confFileName, cfgpath);
+  fConfFileDir = OpenInPath(confFileName, cfgpath, infile);
 
   if( !infile ) {
     cerr << "OnlineConfig() ERROR: cannot find " << confFileName << endl;
@@ -303,17 +304,17 @@ int OnlineConfig::CheckLoadIncludeFile(
       cerr << "Too " << (strvect.size() == 1 ? "few" : "many")
            << "arguments for include statement "
            << "(expect 1 = file name). Skipping line: " << endl
-           << "--> " << std::quoted(sline) << endl;
+           << "--> \"" << sline << "\"" << endl;
       return 0;
     }
-    string fname = ExpandFileName(strvect[1]), incdir;
+    string fname = ExpandFileName(strvect[1]);
     ifstream ifs;
-    std::tie(ifs, incdir) = OpenInPath(fname, fConfFilePath);
+    string incdir = OpenInPath(fname, fConfFilePath, ifs);
     if( !ifs )
       throw std::runtime_error("Error opening include file \"" + fname + "\"");
     fname = incdir + "/" + BasenameStr(fname);
     if( fVerbosity >= 1 )
-      cout << "Loading include file " << std::quoted(fname) << endl;
+      cout << "Loading include file \"" << fname << "\""<< endl;
     auto ret = LoadFile(ifs, fname);
     if( ret < 0 )
       throw std::runtime_error("Error loading include file \"" + fname + "\"");
@@ -919,8 +920,8 @@ void OnlineConfig::GetDrawCommand(
     cout << endl;
     int i = 0;
     for( const auto& cmd: out_command ) {
-      cout << i++ << ": [" << std::quoted(cmd.first)
-           << ", " << std::quoted(cmd.second) << "]" << endl;
+      cout << i++ << ": [\"" << cmd.first << "\""
+           << ", \"" << cmd.second << "\"]" << endl;
     }
   }
 }
@@ -948,8 +949,7 @@ void OnlineConfig::OverrideRootFile( int runnumber )
     cout << " Looking for ROOT file with runnumber " << runnumber
          << " in " << fnmRootPath << endl;
     ifstream ifs;
-    string fp;
-    std::tie(ifs, fp) = OpenInPath(protofile, fnmRootPath);
+    string fp = OpenInPath(protofile, fnmRootPath, ifs);
     if( ifs ) {
       rootfilename = fp + "/" + BasenameStr(protofile);
       found = true;
