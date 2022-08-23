@@ -10,6 +10,7 @@
 #include <cctype>     // isalnum
 #include <algorithm>  // find_if
 #include <regex>
+#include <sys/stat.h>
 
 using namespace std;
 
@@ -97,6 +98,16 @@ OpenInPath( const string& filename, const string& path, ifstream& infile )
     }
   } else {
     foundpath = dirname;
+  }
+  // Ensure this is a regular file. A bit clumsy in C++11 ...
+  if( infile ) {
+    struct stat fs{};
+    string fpath = foundpath + "/" + BasenameStr(filename);
+    stat(fpath.c_str(), &fs);
+    if( !S_ISREG(fs.st_mode) ) {
+      foundpath.clear();
+      infile.setstate(ios_base::failbit);
+    }
   }
   return foundpath;
 }
