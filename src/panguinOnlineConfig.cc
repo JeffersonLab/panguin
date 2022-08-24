@@ -360,7 +360,11 @@ int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename )
   string sinput, sline;
   int loaded_here = 0, ret = 0;
   while( getline(infile, sline) ) {
-    if( sline.empty() || sline.find(comment) != string::npos ) continue;
+    auto pos = sline.find(comment);
+    if( pos != string::npos )
+      sline.erase(pos);
+    if( sline.find_first_not_of(" \t") == string::npos )
+      continue;
     istringstream istr(sline);
     string field;
     strvect.clear();
