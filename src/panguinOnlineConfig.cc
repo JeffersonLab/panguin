@@ -7,10 +7,12 @@
 #include <cassert>
 #include <stdexcept>
 #include <iomanip>    // quoted, setw, setfill
-#include <cctype>     // isalnum
+#include <cctype>     // isalnum, isdigit
 #include <algorithm>  // find_if
-#include <regex>
 #include <sys/stat.h>
+#if __cplusplus >= 201703L
+#include <regex>
+#endif
 
 using namespace std;
 
@@ -219,12 +221,25 @@ static void OverrideFormat( string& proto, const string& fmt,
 // another underscore or a period: _12345_ or _1234.
 static int ExtractRunNumber( const string& filename )
 {
+#if __cplusplus >= 201703L
   regex re("_([0-9]{4,5})[\\._]");
   smatch sm;
   if( regex_search(filename, sm, re) && sm.size() > 1)
     return stoi(sm[1].str());
-  else
-    return 0;
+#else
+  // std::regex is buggy in old compilers
+  string::size_type pos = 0, len = filename.length();
+  while( (pos = filename.find('_', pos)) != string::npos ) {
+    auto next = pos + 1;
+    int k = 0;
+    while( ++pos < len && isdigit(filename[pos]) && ++k < 5 );
+    if( k >= 4 && ++pos < len && (filename[pos] == '.' || filename[pos] == '_') ) {
+      return stoi(filename.substr(pos - k, k));
+    }
+    pos = next;
+  }
+#endif
+  return 0;
 }
 
 //_____________________________________________________________________________
