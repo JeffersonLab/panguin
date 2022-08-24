@@ -7,9 +7,12 @@
 #include <cassert>
 #include <stdexcept>
 #include <iomanip>    // quoted, setw, setfill
-#include <cctype>     // isalnum
+#include <cctype>     // isalnum, isdigit
 #include <algorithm>  // find_if
+#include <sys/stat.h>
+#if __cplusplus >= 201703L
 #include <regex>
+#endif
 
 using namespace std;
 
@@ -98,6 +101,16 @@ OpenInPath( const string& filename, const string& path, ifstream& infile )
   } else {
     foundpath = dirname;
   }
+  // Ensure this is a regular file. A bit clumsy in C++11 ...
+  if( infile ) {
+    struct stat fs{};
+    string fpath = foundpath + "/" + BasenameStr(filename);
+    stat(fpath.c_str(), &fs);
+    if( !S_ISREG(fs.st_mode) ) {
+      foundpath.clear();
+      infile.setstate(ios_base::failbit);
+    }
+  }
   return foundpath;
 }
 
@@ -135,6 +148,18 @@ static string ExpandFileName( string str )
     auto* envval = getenv(envvar.c_str());
     if( envval )
       str.replace(pos, len + 1, envval);
+    else {
+      string msg;
+      if( len > 0 ) {
+        msg = "Undefined environment variable $";
+        msg += envvar;
+        msg += "\nSet variable or correct configuration.";
+      } else {
+        msg = "Spurious \"$\" encountered. Did you mean to reference an "
+              "environment variable?";
+      }
+      throw std::runtime_error(msg);
+    }
   }
   return str;
 }
@@ -196,12 +221,25 @@ static void OverrideFormat( string& proto, const string& fmt,
 // another underscore or a period: _12345_ or _1234.
 static int ExtractRunNumber( const string& filename )
 {
+#if __cplusplus >= 201703L
   regex re("_([0-9]{4,5})[\\._]");
   smatch sm;
   if( regex_search(filename, sm, re) && sm.size() > 1)
     return stoi(sm[1].str());
-  else
-    return 0;
+#else
+  // std::regex is buggy in old compilers
+  string::size_type pos = 0, len = filename.length();
+  while( (pos = filename.find('_', pos)) != string::npos ) {
+    auto next = pos + 1;
+    int k = 0;
+    while( ++pos < len && isdigit(filename[pos]) && ++k < 5 );
+    if( k >= 4 && ++pos < len && (filename[pos] == '.' || filename[pos] == '_') ) {
+      return stoi(filename.substr(pos - k, k));
+    }
+    pos = next;
+  }
+#endif
+  return 0;
 }
 
 //_____________________________________________________________________________
@@ -337,7 +375,11 @@ int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename )
   string sinput, sline;
   int loaded_here = 0, ret = 0;
   while( getline(infile, sline) ) {
-    if( sline.empty() || sline.find(comment) != string::npos ) continue;
+    auto pos = sline.find(comment);
+    if( pos != string::npos )
+      sline.erase(pos);
+    if( sline.find_first_not_of(" \t") == string::npos )
+      continue;
     istringstream istr(sline);
     string field;
     strvect.clear();
@@ -445,167 +487,177 @@ bool OnlineConfig::ParseConfig()
   if( !fFoundCfg )
     return false;
 
-  // Find "newpage" commands and store their locations and lengths
-  auto first_page = ParsePageInfo(ALL(sConfFile), pageInfo);
+  try {
+    // Find "newpage" commands and store their locations and lengths
+    auto first_page = ParsePageInfo(ALL(sConfFile), pageInfo);
 
-  // List of defined commands and corresponding actions
-  vector<CommandDef> cmddefs = {
-    {"watchfile",
-      0, [&]( const VecStr_t& ) {
-      fMonitor = true;
-    }},
-    {"2DbinsX",
-      0, [&]( const VecStr_t& line ) {
-      hist2D_nBinsX = stoi(line[1]);
-    }},
-    {"2DbinsY",
-      0, [&]( const VecStr_t& line ) {
-      hist2D_nBinsY = stoi(line[1]);
-    }},
-    {"definecut",
-      2, [&]( const VecStr_t& line ) {
-      cutList.emplace_back(line[1], line[2]);
-    }},
-    {"rootfile",
-      1, [&]( const VecStr_t& line ) {
-      if( !IsSet(rootfilename, line[0]) )
-        rootfilename = line[1];
-    }},
-    {"goldenrootfile",
-      1, [&]( const VecStr_t& line ) {
-      goldenrootfilename = ExpandFileName(line[1]);
-    }},
-    {"protorootfile",
-      1, [&]( const VecStr_t& line ) {
-      fProtoRootFiles.push_back(ExpandFileName(line[1]));
-    }},
-    {"guicolor",
-      1, [&]( const VecStr_t& line ) {
-      guicolor = line[1];
-    }},
-    {"plotsdir",
-      1, [&]( const VecStr_t& line ) {
-      if( !IsSet(plotsdir, line[0]) )
-        plotsdir = line[1];
-    }},
-    {"imagesdir",
-      1, [&]( const VecStr_t& line ) {
-      if( !IsSet(fImagesDir, line[0]) )
-        fImagesDir = line[1];
-    }},
-    {"plotFormat",
-      1, [&]( const VecStr_t& line ) {
-      if( !IsSet(fPlotFormat, line[0]) )
-        fPlotFormat = line[1];
-    }},
-    {"imageFormat",
-      1, [&]( const VecStr_t& line ) {
-      if( !IsSet(fImageFormat, line[0]) )
-        fImageFormat = line[1];
-    }},
-    {"rootfilespath",
-      1, [&]( const VecStr_t& line ) {
-      AppendToPath(fRootFilesPath, ExpandFileName(line[1]));
-    }},
-    {"protoplotfile",
-      1, [&]( const VecStr_t& line ) {
-      fProtoPlotFile = ExpandFileName(line[1]);
-    }},
-    {"protoplotpagefile",
-      1, [&]( const VecStr_t& line ) {
-      fProtoPlotPageFile = ExpandFileName(line[1]);
-    }},
-    {"protoimagefile",
-      1, [&]( const VecStr_t& line ) {
-      fProtoImageFile = ExpandFileName(line[1]);
-    }},
-    {"protomacroimagefile",
-      1, [&]( const VecStr_t& line ) {
-      fProtoMacroImageFile = ExpandFileName(line[1]);
-    }},
-    {"ndigits",
-      3, [&]( const VecStr_t& line ) {
-      fRunNoWidth = StrToIntRange(line[1], 0, 8, "ndigits run number width");
-      fPageNoWidth = StrToIntRange(line[2], 0, 5, "ndigits page number width");
-      fPadNoWidth = StrToIntRange(line[3], 0, 3, "ndigits pad number width");
-    }}
-  };
+    // List of defined commands and corresponding actions
+    vector<CommandDef> cmddefs = {
+      {"watchfile",
+        0, [&]( const VecStr_t& ) {
+        fMonitor = true;
+      }},
+      {"2DbinsX",
+        0, [&]( const VecStr_t& line ) {
+        hist2D_nBinsX = stoi(line[1]);
+      }},
+      {"2DbinsY",
+        0, [&]( const VecStr_t& line ) {
+        hist2D_nBinsY = stoi(line[1]);
+      }},
+      {"definecut",
+        2, [&]( const VecStr_t& line ) {
+        cutList.emplace_back(line[1], line[2]);
+      }},
+      {"rootfile",
+        1, [&]( const VecStr_t& line ) {
+        if( !IsSet(rootfilename, line[0]) )
+          rootfilename = line[1];
+      }},
+      {"goldenrootfile",
+        1, [&]( const VecStr_t& line ) {
+        goldenrootfilename = ExpandFileName(line[1]);
+      }},
+      {"protorootfile",
+        1, [&]( const VecStr_t& line ) {
+        fProtoRootFiles.push_back(ExpandFileName(line[1]));
+      }},
+      {"guicolor",
+        1, [&]( const VecStr_t& line ) {
+        guicolor = line[1];
+      }},
+      {"plotsdir",
+        1, [&]( const VecStr_t& line ) {
+        if( !IsSet(plotsdir, line[0]) )
+          plotsdir = line[1];
+      }},
+      {"imagesdir",
+        1, [&]( const VecStr_t& line ) {
+        if( !IsSet(fImagesDir, line[0]) )
+          fImagesDir = line[1];
+      }},
+      {"plotFormat",
+        1, [&]( const VecStr_t& line ) {
+        if( !IsSet(fPlotFormat, line[0]) )
+          fPlotFormat = line[1];
+      }},
+      {"imageFormat",
+        1, [&]( const VecStr_t& line ) {
+        if( !IsSet(fImageFormat, line[0]) )
+          fImageFormat = line[1];
+      }},
+      {"rootfilespath",
+        1, [&]( const VecStr_t& line ) {
+        AppendToPath(fRootFilesPath, ExpandFileName(line[1]));
+      }},
+      {"protoplotfile",
+        1, [&]( const VecStr_t& line ) {
+        fProtoPlotFile = ExpandFileName(line[1]);
+      }},
+      {"protoplotpagefile",
+        1, [&]( const VecStr_t& line ) {
+        fProtoPlotPageFile = ExpandFileName(line[1]);
+      }},
+      {"protoimagefile",
+        1, [&]( const VecStr_t& line ) {
+        fProtoImageFile = ExpandFileName(line[1]);
+      }},
+      {"protomacroimagefile",
+        1, [&]( const VecStr_t& line ) {
+        fProtoMacroImageFile = ExpandFileName(line[1]);
+      }},
+      {"ndigits",
+        3, [&]( const VecStr_t& line ) {
+        fRunNoWidth = StrToIntRange(line[1], 0, 8, "ndigits run number width");
+        fPageNoWidth = StrToIntRange(line[2], 0, 5,
+                                     "ndigits page number width");
+        fPadNoWidth = StrToIntRange(line[3], 0, 3, "ndigits pad number width");
+      }}
+    };
 
-  ParseCommands(sConfFile.begin(), first_page, cmddefs);
+    ParseCommands(sConfFile.begin(), first_page, cmddefs);
 
-  if( fVerbosity >= 3 ) {
-    cout << "OnlineConfig::ParseConfig()\n";
-    for( uint_t i = 0; i < GetPageCount(); i++ ) {
-      cout << "Page " << i << " (" << GetPageTitle(i) << ")"
-           << " will draw " << GetDrawCount(i)
-           << " histograms." << endl;
+    if( fVerbosity >= 3 ) {
+      cout << "OnlineConfig::ParseConfig()\n";
+      for( uint_t i = 0; i < GetPageCount(); i++ ) {
+        cout << "Page " << i << " (" << GetPageTitle(i) << ")"
+             << " will draw " << GetDrawCount(i)
+             << " histograms." << endl;
+      }
     }
+
+    cout << "Number of pages defined = " << GetPageCount() << endl;
+    cout << "Number of cuts defined = " << cutList.size() << endl;
+
+    if( !rootfilename.empty() ) {
+      rootfilename = ExpandFileName(rootfilename);
+      cout << "Using ROOT file " << rootfilename << endl;
+      fRunNumber = ExtractRunNumber(rootfilename);
+      cout << "Run number extracted from file name = " << fRunNumber << endl;
+    }
+    if( !plotsdir.empty() )
+      plotsdir = ExpandFileName(plotsdir);
+    if( !fImagesDir.empty() )
+      fImagesDir = ExpandFileName(fImagesDir);
+
+    if( fMonitor )
+      cout << "Will periodically update plots" << endl;
+    if( !goldenrootfilename.empty() ) {
+      cout << "Will compare chosen histograms with the golden rootfile: "
+           << endl
+           << goldenrootfilename << endl;
+    }
+
+    // Set fallback defaults
+    if( fPlotFormat.empty() )
+      fPlotFormat = "pdf";
+    if( fImageFormat.empty() )
+      fImageFormat = "png";
+    if( fProtoPlotFile.empty() )
+      fProtoPlotFile = "summaryPlots_%R_%C.%E";
+    if( fProtoPlotPageFile.empty() )
+      fProtoPlotPageFile = "summaryPlots_%R_page%P_%C.%E";
+    if( fProtoImageFile.empty() )
+      fProtoImageFile = "hydra_%R_%V_%C.%F";
+    if( fProtoMacroImageFile.empty() )
+      fProtoMacroImageFile = "hydra_%R_page%P_pad%D_%C.%F";
+
+    // Prepend output directory to plot file prototypes
+    if( !plotsdir.empty() ) {
+      bool b1 = PrependDir(plotsdir, fProtoPlotFile, "plotsdir",
+                           "protoplotfile");
+      bool b2 = PrependDir(plotsdir, fProtoPlotPageFile, "plotsdir",
+                           "protoplotpagefile");
+      if( !(b1 || b2) )
+        plotsdir.clear();  // Don't create possibly spurious directory
+      if( fImagesDir.empty() )
+        fImagesDir = plotsdir;
+    }
+    // Prepend output directory to image file prototypes
+    if( !fImagesDir.empty() ) {
+      bool b1 = PrependDir(fImagesDir, fProtoImageFile, "imagesdir",
+                           "protoimagefile");
+      bool b2 = PrependDir(fImagesDir, fProtoMacroImageFile, "imagesdir",
+                           "protomacroimagefile");
+      if( !(b1 || b2) )
+        fImagesDir.clear();  // Don't create possibly spurious directory
+    }
+
+    // Honor requested plot format
+    OverrideFormat(fProtoPlotFile, fPlotFormat, "plotFormat", "protoplotfile");
+    OverrideFormat(fProtoPlotPageFile, fPlotFormat, "plotFormat",
+                   "protoplotpagefile");
+    // Honor requested image format
+    OverrideFormat(fProtoImageFile, fImageFormat, "imageFormat",
+                   "protoimagefile");
+    OverrideFormat(fProtoMacroImageFile, fImageFormat, "imageFormat",
+                   "protomacroimagefile");
+
   }
-
-  cout << "Number of pages defined = " << GetPageCount() << endl;
-  cout << "Number of cuts defined = " << cutList.size() << endl;
-
-  if( !rootfilename.empty() ) {
-    rootfilename = ExpandFileName(rootfilename);
-    cout << "Using ROOT file " << rootfilename << endl;
-    fRunNumber = ExtractRunNumber(rootfilename);
-    cout << "Run number extracted from file name = " << fRunNumber << endl;
+  catch( const exception& e ) {
+    cerr << "Error parsing configuration file: " << e.what() << endl;
+    return false;
   }
-  if( !plotsdir.empty() )
-    plotsdir = ExpandFileName(plotsdir);
-  if( !fImagesDir.empty() )
-    fImagesDir = ExpandFileName(fImagesDir);
-
-  if( fMonitor )
-    cout << "Will periodically update plots" << endl;
-  if( !goldenrootfilename.empty() ) {
-    cout << "Will compare chosen histograms with the golden rootfile: "
-         << endl
-         << goldenrootfilename << endl;
-  }
-
-  // Set fallback defaults
-  if( fPlotFormat.empty() )
-    fPlotFormat = "pdf";
-  if( fImageFormat.empty() )
-    fImageFormat = "png";
-  if( fProtoPlotFile.empty() )
-    fProtoPlotFile = "summaryPlots_%R_%C.%E";
-  if( fProtoPlotPageFile.empty() )
-    fProtoPlotPageFile = "summaryPlots_%R_page%P_%C.%E";
-  if( fProtoImageFile.empty() )
-    fProtoImageFile = "hydra_%R_%V_%C.%F";
-  if( fProtoMacroImageFile.empty() )
-    fProtoMacroImageFile = "hydra_%R_page%P_pad%D_%C.%F";
-
-  // Prepend output directory to plot file prototypes
-  if( !plotsdir.empty() ) {
-    bool b1 = PrependDir(plotsdir, fProtoPlotFile, "plotsdir",
-                         "protoplotfile");
-    bool b2 = PrependDir(plotsdir, fProtoPlotPageFile, "plotsdir",
-                         "protoplotpagefile");
-    if( !(b1 || b2) )
-      plotsdir.clear();  // Don't create possibly spurious directory
-    if( fImagesDir.empty() )
-      fImagesDir = plotsdir;
-  }
-  // Prepend output directory to image file prototypes
-  if( !fImagesDir.empty() ) {
-    bool b1 = PrependDir(fImagesDir, fProtoImageFile, "imagesdir",
-                         "protoimagefile");
-    bool b2 = PrependDir(fImagesDir, fProtoMacroImageFile, "imagesdir",
-                         "protomacroimagefile");
-    if( !(b1 || b2) )
-      fImagesDir.clear();  // Don't create possibly spurious directory
-  }
-
-  // Honor requested plot format
-  OverrideFormat(fProtoPlotFile, fPlotFormat, "plotFormat", "protoplotfile");
-  OverrideFormat(fProtoPlotPageFile, fPlotFormat, "plotFormat", "protoplotpagefile");
-  // Honor requested image format
-  OverrideFormat(fProtoImageFile, fImageFormat, "imageFormat", "protoimagefile");
-  OverrideFormat(fProtoMacroImageFile, fImageFormat, "imageFormat", "protomacroimagefile");
-
   return true;
 }
 
