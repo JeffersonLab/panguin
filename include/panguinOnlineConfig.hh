@@ -116,6 +116,7 @@ public:
   int GetRunNumber() const { return fRunNumber; }
   std::string SubstituteRunNumber( std::string str, int runnumber ) const;
 
+  const std::string& GetConfFilePath() const { return fConfFilePath; }
   const std::string& GetGuiDirectory() const { return fConfFileDir; }
   const std::string& GetConfFileName() const { return confFileName; }
   void Get2DnumberBins( int& nX, int& nY ) const

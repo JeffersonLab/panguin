@@ -108,9 +108,9 @@ void online( const OnlineConfig::CmdLineOpts& opts )
 
   TString macropath = gROOT->GetMacroPath();
   macropath += ":./macros";   // for backward compatibility
-  TString guidir = fconfig.GetGuiDirectory();
-  if( !guidir.IsNull() )
-    macropath = ".:" + guidir + ":" + macropath;
+  TString guipath = fconfig.GetConfFilePath();
+  if( !guipath.IsNull() )
+    macropath = ".:" + guipath + ":" + macropath;
   gROOT->SetMacroPath(macropath);
 
   if( opts.run != 0 ) {
