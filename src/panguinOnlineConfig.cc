@@ -131,14 +131,14 @@ static string ExpandFileName( string str )
 {
   if( str.empty() )
     return str;
-  if( str[0] == '~' ) {
+  size_t pos = str.find('~');
+  if( pos == 0 || str[pos-1] == ':' ) {
     auto* home = getenv("HOME");
     if( home )
-      str.replace(0, 1, home);
+      str.replace(pos, 1, home);
   }
   if( str.size() < 2 )
     return str;
-  size_t pos;
   while( (pos = str.find('$')) != string::npos ) {
     auto iend = find_if(str.begin() + pos + 1, str.end(), []( int c ) {
       return (!isalnum(c) && c != '_');
@@ -293,9 +293,23 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   // Pick up config file directory/path form environment.
   // A config dir or path given on the command line takes preference.
   string cfgpath = opts.cfgdir;
-  const char* env_cfgdir = getenv("PANGUIN_CONFIG_PATH");
-  if( env_cfgdir )
-    AppendToPath(cfgpath, env_cfgdir);
+  try {
+    confFileName = ExpandFileName(confFileName);
+    rootfilename = ExpandFileName(rootfilename);
+    fRootFilesPath = ExpandFileName(fRootFilesPath);
+    fImagesDir = ExpandFileName(fImagesDir);
+    plotsdir = ExpandFileName(plotsdir);
+
+    const char* env_cfgdir = getenv("PANGUIN_CONFIG_PATH");
+    if( env_cfgdir )
+      AppendToPath(cfgpath, env_cfgdir);
+    cfgpath = ExpandFileName(cfgpath);
+  }
+  catch ( std::runtime_error& e ) {
+    cerr << "Error in file name or path: " << e.what() << endl;
+    fFoundCfg = false;
+    return;
+  }
   if( fVerbosity > 0 )
     cout << "config file path = " << cfgpath << endl;
 
