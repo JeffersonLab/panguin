@@ -41,11 +41,12 @@ int main( int argc, char** argv )
                  "Plot format (pdf, png, jpg ...)")
     ->type_name("<fmt>");
   cli.add_option("-C,--config-dir", cfgdir,
-                 "Configuration directory or path (: separated)")
-    ->type_name("<dir>");
+                 "Search path for configuration files & macros "
+                 "(\":\"-separated)")
+    ->type_name("<path>");
   cli.add_option("--root-dir", rootdir,
-                 "ROOT files directory or path (: separated)")
-    ->type_name("<dir>");
+                 "ROOT files search path (\":\"-separated)")
+    ->type_name("<path>");
   cli.add_option("-O,--plots-dir", pltdir,
                  "Output directory for summary plots")
     ->type_name("<dir>");
