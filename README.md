@@ -90,7 +90,7 @@ one output file per page is generated, and the file name is
 generated from the pattern specified by the `protoplotpagefile`
 command (see later).
 
-### -C,--config-dir \<dir\>
+### -C,--config-dir \<path\>
 
 Search for configuration files and plot macros in the given directory or
 directory path (= list of directories separated by colons). The current working
@@ -111,7 +111,7 @@ automatically appended to the configuration directory search path
 (even if --config-dir isn't given on the command line). It is usually more 
 convenient to set this variable instead of using the command line option.
 
-### --root-dir \<dir\>
+### --root-dir \<path\>
 
 Specifies the search directory or path for ROOT files, similar to
 --config-dir.
