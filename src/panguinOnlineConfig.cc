@@ -326,8 +326,12 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   confFileName = BasenameStr(confFileName);
 
   // Ensure that fConfFilePath contains any relative path from confFileName
-  if( fConfFileDir != "." && cfgpath.find(fConfFileDir) == string::npos )
-    cfgpath = cfgpath.empty() ? fConfFileDir : fConfFileDir + ":" + cfgpath;
+  if( fConfFileDir != "." ) {
+    auto pos = cfgpath.find(fConfFileDir);
+    if( pos == string::npos || (pos + fConfFileDir.length() < cfgpath.size()
+                                && cfgpath[pos + cfgpath.length()] != ':') )
+      cfgpath = cfgpath.empty() ? fConfFileDir : fConfFileDir + ":" + cfgpath;
+  }
   fConfFilePath = std::move(cfgpath);
 
   string fullpath = fConfFileDir + "/" + confFileName;
