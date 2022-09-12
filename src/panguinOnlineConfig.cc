@@ -607,11 +607,25 @@ bool OnlineConfig::ParseConfig()
     cout << "Number of pages defined = " << GetPageCount() << endl;
     cout << "Number of cuts defined = " << cutList.size() << endl;
 
-    if( !rootfilename.empty() ) {
+    if( rootfilename.empty() && fRunNumber != 0)
+      OverrideRootFile(fRunNumber);
+    else if( !rootfilename.empty() ) {
+      if (fRunNumber != 0)
+	cout << "Notice: Both ROOT file and run number specified. "
+	     << "Using ROOT file from commandline." << endl;
       rootfilename = ExpandFileName(rootfilename);
       cout << "Using ROOT file " << rootfilename << endl;
-      fRunNumber = ExtractRunNumber(rootfilename);
-      cout << "Run number extracted from file name = " << fRunNumber << endl;
+      int runnum = ExtractRunNumber(rootfilename);
+      cout << "Run number extracted from file name = " << runnum << endl;
+      if (fRunNumber==0 && runnum!=0)
+	fRunNumber = runnum;
+      else if (fRunNumber==0)
+	cerr << "Warning:  Run number could not be extracted from ROOT file name; specify on the commandline if you want it!" << endl;
+      else if (fRunNumber != runnum)
+	cerr << "Warning: Run number extracted from ROOT file name differs from command line value: "
+	     << runnum << " vs. " << fRunNumber
+	     << ".  Using commandline value: " << fRunNumber
+	     << endl;
     }
     if( !plotsdir.empty() )
       plotsdir = ExpandFileName(plotsdir);
@@ -1015,9 +1029,10 @@ void OnlineConfig::OverrideRootFile( int runnumber )
   for( auto& protofile: fProtoRootFiles ) {
     // try opening protofile in path
     assert(!protofile.empty());  // else error in ParseConfig
-    protofile = SubstituteRunNumber(protofile, runnumber);
-    cout << " Looking for ROOT file with runnumber " << runnumber
+    cout << " Looking for protoROOT file " << protofile
+	 << " with runnumber " << runnumber
          << " in " << fnmRootPath << endl;
+    protofile = SubstituteRunNumber(protofile, runnumber);
     ifstream ifs;
     string fp = OpenInPath(protofile, fnmRootPath, ifs);
     if( ifs ) {

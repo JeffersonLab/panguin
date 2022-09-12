@@ -121,15 +121,5 @@ void online( const OnlineConfig::CmdLineOpts& opts )
     macropath = ".:" + guipath + ":" + macropath;
   gROOT->SetMacroPath(macropath);
 
-  if( opts.run != 0 ) {
-    if( !opts.rootfile.empty() )
-      cerr << "Warning: Both ROOT file and run number specified. "
-           << "ROOT file will be ignored." << endl;
-    if( fconfig.GetRunNumber() != 0 && fconfig.GetRunNumber() != opts.run )
-      cerr << "Warning: Run number extracted from ROOT file name differs from "
-              "the one requested on the command line: "
-           << fconfig.GetRunNumber() << " vs. " << opts.run << endl;
-  }
-
   new OnlineGUI(std::move(fconfig));
 }
