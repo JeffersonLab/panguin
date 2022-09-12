@@ -129,7 +129,6 @@ void online( const OnlineConfig::CmdLineOpts& opts )
       cerr << "Warning: Run number extracted from ROOT file name differs from "
               "the one requested on the command line: "
            << fconfig.GetRunNumber() << " vs. " << opts.run << endl;
-    fconfig.OverrideRootFile(opts.run);
   }
 
   new OnlineGUI(std::move(fconfig));

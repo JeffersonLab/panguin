@@ -233,7 +233,7 @@ static int ExtractRunNumber( const string& filename )
     auto next = pos + 1;
     int k = 0;
     while( ++pos < len && isdigit(filename[pos]) && ++k < 5 );
-    if( k >= 4 && ++pos < len && (filename[pos] == '.' || filename[pos] == '_') ) {
+    if( k >= 4 && pos + 1 < len && (filename[pos] == '.' || filename[pos] == '_') ) {
       return stoi(filename.substr(pos - k, k));
     }
     pos = next;
