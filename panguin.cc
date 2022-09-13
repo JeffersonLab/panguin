@@ -9,7 +9,7 @@
 #include <string>
 #include <stdexcept>
 
-#define PANGUIN_VERSION "Panguin version 2.2 (31-Aug-2022)"
+#define PANGUIN_VERSION "Panguin version 2.3 (13-Sep-2022)"
 
 using namespace std;
 
