@@ -529,8 +529,14 @@ bool OnlineConfig::ParseConfig()
       }},
       {"rootfile",
         1, [&]( const VecStr_t& line ) {
-        if( !IsSet(rootfilename, line[0]) )
-          rootfilename = line[1];
+        if( !IsSet(rootfilename, line[0]) ) {
+          if( fRunNumber != 0 )
+            cout << "Warning: Run number set on command line. "
+                 << "Ignoring rootfile specification from config file."
+                 << endl;
+          else
+            rootfilename = line[1];
+        }
       }},
       {"goldenrootfile",
         1, [&]( const VecStr_t& line ) {
