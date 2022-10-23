@@ -173,53 +173,17 @@ OnlineGUI::OnlineGUI( OnlineConfig config )
     }
   }
 
+  if( PrepareRootFiles() )
+    throw runtime_error("Error opening ROOT file");
+
   if( !fPrintOnly )
     CreateGUI(gClient->GetRoot(), 1600, 1200);
 }
 
 void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
 {
-  // Open the RootFile.  Die if it doesn't exist.
-  //  unless we're watching a file.
-  fRootFile = new TFile(fConfig.GetRootFile(), "READ");
-  if( !fRootFile->IsOpen() ) {
-    cerr << "ERROR:  rootfile: " << fConfig.GetRootFile()
-         << " cannot be opened"
-         << endl;
-    if( fConfig.IsMonitor() ) {
-      cout << "Will wait... hopefully.." << endl;
-    } else {
-      gApplication->Terminate();
-    }
-  } else {
-    fFileAlive = kTRUE;
-    runNumber = fConfig.GetRunNumber();
-    // Open the Root Trees.  Give a warning if it's not there..
-    GetFileObjects();
-    GetRootTree();
-    GetTreeVars();
-    for( UInt_t i = 0; i < fRootTree.size(); i++ ) {
-      if( fRootTree[i] == nullptr ) {
-        fRootTree.erase(fRootTree.begin() + i);
-      }
-    }
-  }
-  TString goldenfilename = fConfig.GetGoldenFile();
-  if( !goldenfilename.IsNull() ) {
-    fGoldenFile = new TFile(goldenfilename, "READ");
-    if( !fGoldenFile->IsOpen() ) {
-      cerr << "ERROR: goldenrootfile: " << goldenfilename
-           << " cannot be opened.  Oh well, no comparison plots."
-           << endl;
-      doGolden = kFALSE;
-      fGoldenFile = nullptr;
-    } else {
-      doGolden = kTRUE;
-    }
-  } else {
-    doGolden = kFALSE;
-    fGoldenFile = nullptr;
-  }
+  if( !fRootFile )
+    throw runtime_error("No ROOT file");
 
   // Create the main frame
   fMain = new TGMainFrame(p, w, h);
@@ -386,15 +350,14 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
   if( fVerbosity >= 1 )
     fMain->Print();
 
-  if( fFileAlive ) DoDraw();
+  if( fFileAlive )
+    DoDraw();
 
   if( fConfig.IsMonitor() ) {
     timerNow = new TTimer();
     TTimer::Connect(timerNow, "Timeout()", "OnlineGUI", this, "UpdateCurrentTime()");
     timerNow->Start(1000);  // update every second
-  }
 
-  if( fConfig.IsMonitor() ) {
     timer = new TTimer();
     if( fFileAlive ) {
       TTimer::Connect(timer, "Timeout()", "OnlineGUI", this, "TimerUpdate()");
@@ -927,6 +890,62 @@ void OnlineGUI::CheckRootFile()
   }
 }
 
+Int_t OnlineGUI::PrepareRootFiles()
+{
+  // Open the RootFile. Die if it doesn't exist unless we're watching a file.
+  // Also open GoldenFile. Warn if it doesn't exist.
+
+  delete fRootFile; fRootFile = nullptr;
+  delete fGoldenFile; fGoldenFile = nullptr;
+
+  fRootFile = new TFile(fConfig.GetRootFile(), "READ");
+  if( !fRootFile->IsOpen() ) {
+    ostringstream ostr;
+    ostr << "ERROR:  rootfile: " << fConfig.GetRootFile()
+         << " cannot be opened";
+    fFileAlive = kFALSE;
+    if( !fPrintOnly && fConfig.IsMonitor() ) {
+      cout << ostr.str() << endl;
+      cout << "Will wait... hopefully.." << endl;
+    } else {
+      cerr << ostr.str() << endl;
+      delete fRootFile;
+      fRootFile = nullptr;
+      return 1;
+    }
+  } else {
+    fFileAlive = kTRUE;
+    runNumber = fConfig.GetRunNumber();
+    // Open the Root Trees.  Give a warning if it's not there..
+    GetFileObjects();
+    GetRootTree();
+    GetTreeVars();
+    for( UInt_t i = 0; i < fRootTree.size(); i++ ) {
+      if( fRootTree[i] == nullptr ) {
+        fRootTree.erase(fRootTree.begin() + i);
+      }
+    }
+  }
+  TString goldenfilename = fConfig.GetGoldenFile();
+  if( !goldenfilename.IsNull() ) {
+    fGoldenFile = new TFile(goldenfilename, "READ");
+    doGolden = fGoldenFile->IsOpen();
+    if( !doGolden ) {
+      cerr << "ERROR: goldenrootfile: " << goldenfilename
+           << " cannot be opened.  Oh well, no comparison plots." << endl;
+      delete fGoldenFile;
+      fGoldenFile = nullptr;
+      if( fFileAlive )
+        fRootFile->cd();
+    }
+  } else {
+    doGolden = kFALSE;
+    fGoldenFile = nullptr;
+  }
+
+  return 0;
+}
+
 Int_t OnlineGUI::OpenRootFile()
 {
   fRootFile = new TFile(fConfig.GetRootFile(), "READ");
@@ -1238,47 +1257,13 @@ void OnlineGUI::PrintToFile()
     fCanvas->Print(fi.fFilename);
 }
 
-Int_t OnlineGUI::PrintPages()
+void OnlineGUI::PrintPages()
 {
   // Routine to go through each defined page, and print the output to
   // a postscript file. (good for making sample histograms).
-  // Returns 0 on success, 1 on error.
 
-  // Open the RootFile
-  fRootFile = new TFile(fConfig.GetRootFile(), "READ");
-  if( !fRootFile->IsOpen() ) {
-    cerr << "ERROR:  rootfile: " << fConfig.GetRootFile()
-         << " cannot be opened"
-         << endl;
-    return 1;
-  }
-  fFileAlive = kTRUE;
-  runNumber = fConfig.GetRunNumber();
-  GetFileObjects();
-  GetRootTree();
-  GetTreeVars();
-  for( UInt_t i = 0; i < fRootTree.size(); i++ ) {
-    if( !fRootTree[i] ) {
-      fRootTree.erase(fRootTree.begin() + i);
-    }
-  }
-  TString goldenfilename = fConfig.GetGoldenFile();
-  if( !goldenfilename.IsNull() ) {
-    fGoldenFile = new TFile(goldenfilename, "READ");
-    if( !fGoldenFile->IsOpen() ) {
-      cerr << "ERROR: goldenrootfile: " << goldenfilename
-           << " cannot be opened.  Oh well, no comparison plots."
-           << endl;
-      doGolden = kFALSE;
-      fGoldenFile = nullptr;
-      fRootFile->cd();
-    } else {
-      doGolden = kTRUE;
-    }
-  } else {
-    doGolden = kFALSE;
-    fGoldenFile = nullptr;
-  }
+  if( !fRootFile )
+    throw runtime_error("No ROOT file");
 
   fCanvas = new TCanvas("fCanvas", "trythis", 1000, 800);
   auto* lt = new TLatex();
@@ -1298,7 +1283,7 @@ Int_t OnlineGUI::PrintPages()
     filename = SubstitutePlaceholders(protofilename);
     auto outdir = DirnameStr(filename.Data());
     if( MakePlotsDir(outdir) )
-      return 1;
+      throw runtime_error("Bad directory name");
   }
 
   TString pagehead = "Summary Plots";
@@ -1333,14 +1318,13 @@ Int_t OnlineGUI::PrintPages()
            << " to file = " << filename << endl;
       auto outdir = DirnameStr(filename.Data());
       if( MakePlotsDir(outdir) )
-        return 1;
+        throw runtime_error("Bad directory name");
     }
     fCanvas->Print(filename);
   }
   if( !pagePrint )
     fCanvas->Print(filename + "]");
 
-  return 0;
 }
 
 //_____________________________________________________________________________

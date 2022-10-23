@@ -104,8 +104,9 @@ public:
   static void BadDraw( const TString& );
   void CheckRootFile();
   Int_t OpenRootFile();
+  Int_t PrepareRootFiles();
   void PrintToFile();
-  Int_t PrintPages();
+  void PrintPages();
   void MyCloseWindow();
   void CloseGUI();
   void SetVerbosity( int ver ) { fVerbosity = ver; }
