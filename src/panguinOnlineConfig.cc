@@ -273,6 +273,7 @@ OnlineConfig::OnlineConfig( const string& config_file_name )
 OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   : confFileName(opts.cfgfile)
   , rootfilename(opts.rootfile)
+  , goldenrootfilename(opts.goldenfile)
   , fRootFilesPath(opts.rootdir)
   , fPlotFormat(opts.plotfmt)
   , fImageFormat(opts.imgfmt)
@@ -296,6 +297,7 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   try {
     confFileName = ExpandFileName(confFileName);
     rootfilename = ExpandFileName(rootfilename);
+    goldenrootfilename = ExpandFileName(goldenrootfilename);
     fRootFilesPath = ExpandFileName(fRootFilesPath);
     fImagesDir = ExpandFileName(fImagesDir);
     plotsdir = ExpandFileName(plotsdir);
@@ -540,7 +542,8 @@ bool OnlineConfig::ParseConfig()
       }},
       {"goldenrootfile",
         1, [&]( const VecStr_t& line ) {
-        goldenrootfilename = ExpandFileName(line[1]);
+        if( !IsSet(goldenrootfilename, line[0]) )
+          goldenrootfilename = ExpandFileName(line[1]);
       }},
       {"protorootfile",
         1, [&]( const VecStr_t& line ) {

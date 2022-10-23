@@ -82,6 +82,11 @@ a 4- or 5-digit number preceded by an underscore and followed by either a
 dot or an underscore). If the run number cannot be determined in this way,
 it will be omitted from the generated plots.
 
+### -G, --goldenroot-file \<file name\>
+
+Name of ROOT file with reference plots. If the file is not found, a warning 
+is printed, and no reference plots are generated.
+
 ### -E,--plot-format \<fmt\>
 
 Sets the output plot file format. The default is `pdf`. Also supported
@@ -229,10 +234,11 @@ Following is the list of options recognized in the prologue.
   example, finding ROOT files that differ in a common prefix, such as a DAQ
   configuration. This works well if run numbers are unique, but text parts of
   the file name may vary.
-- **goldenrootfile \<file name\>** selects a file to draw as a comparison for
-  the current file to more easily notice problems with the current run. If the
-  specified file is not found, a warning is printed, and plots are generated
-  without the comparison data.
+- **goldenrootfile \<file name\>** selects a ROOT file containing comparison 
+  plots (reference spectra) to help spot problems with the current run.
+  Reference plots will be overlaid onto the current spectra with a green hatch 
+  pattern. If the specified ROOT file is not found, a warning is printed, and no
+  comparison plots are generated. Equivalent to --goldenroot-file.
 - **rootfilespath \<directory path\>** specifies a path for searching for ROOT
   files (whether specified with `rootfile`, `protorootfile`, or
   `goldenrootfile`). Equivalent to --root-dir. If both --root-dir and

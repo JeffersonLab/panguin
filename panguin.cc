@@ -17,7 +17,7 @@ void online( const OnlineConfig::CmdLineOpts& opts );
 
 int main( int argc, char** argv )
 {
-  string cfgfile{"default.cfg"}, rootfile;
+  string cfgfile{"default.cfg"}, rootfile, goldenfile;
   string plotfmt, imgfmt;
   string cfgdir, rootdir, pltdir, imgdir;
   int run{0};
@@ -36,6 +36,9 @@ int main( int argc, char** argv )
       ->type_name("<run number>");
     cli.add_option("-R,--root-file", rootfile,
                    "ROOT file to process")
+      ->type_name("<file name>");
+    cli.add_option("-G,--goldenroot-file", goldenfile,
+                   "Reference ROOT file")
       ->type_name("<file name>");
     cli.add_flag("-P,-b,--batch", printonly,
                  "No GUI. Save plots to summary file(s)");
@@ -88,8 +91,8 @@ int main( int argc, char** argv )
     }
 
     TApplication theApp("panguin2", &argc, argv, nullptr, -1);
-    online({cfgfile, cfgdir, rootfile, rootdir, plotfmt, imgfmt, pltdir,
-            imgdir, run, verbosity, printonly, saveImages});
+    online({cfgfile, cfgdir, rootfile,  goldenfile, rootdir, plotfmt, imgfmt,
+            pltdir, imgdir, run, verbosity, printonly, saveImages});
     theApp.Run();
 
   } catch ( const exception& e ) {
