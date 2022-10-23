@@ -71,11 +71,11 @@ class OnlineGUI {
 
   std::string SubstitutePlaceholders(
     std::string str, const std::string& var = std::string() ) const;
+  void DeleteGUI();
 
 public:
   using cmdmap_t = std::map<std::string, std::string>;
-  explicit OnlineGUI( const OnlineConfig& config );
-  explicit OnlineGUI( OnlineConfig&& config );
+  explicit OnlineGUI( OnlineConfig config );
   void CreateGUI( const TGWindow* p, UInt_t w, UInt_t h );
   virtual ~OnlineGUI();
   void DoDraw();
@@ -84,7 +84,8 @@ public:
   void DoListBox( Int_t id );
   void CheckPageButtons();
   // Specific Draw Methods
-  Bool_t IsHistogram( const TString& );
+  Bool_t IsHistogram( const TString& objectname );
+  Bool_t IsPrintOnly() const { return fPrintOnly; }
   void GetFileObjects();
   void GetTreeVars();
   void GetRootTree();
@@ -104,7 +105,7 @@ public:
   void CheckRootFile();
   Int_t OpenRootFile();
   void PrintToFile();
-  void PrintPages();
+  Int_t PrintPages();
   void MyCloseWindow();
   void CloseGUI();
   void SetVerbosity( int ver ) { fVerbosity = ver; }

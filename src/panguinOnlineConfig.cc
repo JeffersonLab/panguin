@@ -9,6 +9,7 @@
 #include <iomanip>    // quoted, setw, setfill
 #include <cctype>     // isalnum, isdigit
 #include <algorithm>  // find_if
+#include <type_traits>// make_signed
 #include <sys/stat.h>
 #if __cplusplus >= 201703L
 #include <regex>
@@ -140,7 +141,8 @@ static string ExpandFileName( string str )
   if( str.size() < 2 )
     return str;
   while( (pos = str.find('$')) != string::npos ) {
-    auto iend = find_if(str.begin() + pos + 1, str.end(), []( int c ) {
+    auto spos = static_cast<make_signed<decltype(pos)>::type>(pos);
+    auto iend = find_if(str.begin() + spos + 1, str.end(), []( int c ) {
       return (!isalnum(c) && c != '_');
     });
     auto len = iend - str.begin() - pos - 1;
@@ -354,7 +356,7 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
 }
 
 //_____________________________________________________________________________
-int OnlineConfig::CheckLoadIncludeFile(
+int OnlineConfig::CheckLoadIncludeFile( // NOLINT(misc-no-recursion)
   const string& sline, const std::vector<std::string>& strvect )
 {
   if( strvect[0] == "include" ) {
@@ -385,7 +387,7 @@ int OnlineConfig::CheckLoadIncludeFile(
 // Reads in the Config File, and makes the proper calls to put
 //  the information contained into memory.
 // Returns -1 on error, otherwise the number of include files loaded (usually 0).
-int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename )
+int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename ) // NOLINT(misc-no-recursion)
 {
   if( !infile )
     return -1;
