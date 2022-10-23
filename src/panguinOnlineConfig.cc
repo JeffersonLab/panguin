@@ -792,7 +792,7 @@ pair<uint_t, uint_t> OnlineConfig::GetPageDim( uint_t page )
 }
 
 //_____________________________________________________________________________
-// Returns the title of the page.
+// Returns the title of the page. Page numbers start at 1.
 //  if it is not defined in the config, then return "Page #"
 string OnlineConfig::GetPageTitle( uint_t page )
 {
@@ -812,7 +812,7 @@ string OnlineConfig::GetPageTitle( uint_t page )
     }
   }
   title = "Page ";
-  title += to_string(page);
+  title += to_string(page+1);
   return title;
 }
 

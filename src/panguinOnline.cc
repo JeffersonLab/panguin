@@ -127,7 +127,7 @@ string OnlineGUI::SubstitutePlaceholders( string str, const string& var ) const
   ostr.str("");
   if( fConfig.GetPageNoWidth() > 0 )
     ostr << setw(fConfig.GetPageNoWidth()) << setfill('0');
-  ostr << current_page;
+  ostr << current_page + 1;
   str = ReplaceAll(str, "%P", ostr.str());
   // Pad number
   ostr.clear();
@@ -136,6 +136,7 @@ string OnlineGUI::SubstitutePlaceholders( string str, const string& var ) const
     ostr << setw(fConfig.GetPadNoWidth()) << setfill('0');
   ostr << current_pad;
   str = ReplaceAll(str, "%D", ostr.str());
+  // Plot and image formats
   str = ReplaceAll(str, "%E", fConfig.GetPlotFormat());
   str = ReplaceAll(str, "%F", fConfig.GetImageFormat());
   return str;
@@ -1321,14 +1322,14 @@ Int_t OnlineGUI::PrintPages()
     DoDraw();
     TString pagename = pagehead;
     pagename += " ";
-    pagename += i;
+    pagename += i + 1;
     pagename += ": ";
     pagename += fConfig.GetPageTitle(current_page);
     lt->SetTextSize(0.025);
     lt->DrawLatex(0.05, 0.98, pagename);
     if( pagePrint ) {
       filename = SubstitutePlaceholders(protofilename);
-      cout << "Printing page " << current_page
+      cout << "Printing page " << current_page + 1
            << " to file = " << filename << endl;
       auto outdir = DirnameStr(filename.Data());
       if( MakePlotsDir(outdir) )
