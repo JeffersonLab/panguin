@@ -9,6 +9,7 @@
 #include <iomanip>    // quoted, setw, setfill
 #include <cctype>     // isalnum, isdigit
 #include <algorithm>  // find_if
+#include <type_traits>// make_signed
 #include <sys/stat.h>
 #if __cplusplus >= 201703L
 #include <regex>
@@ -140,7 +141,8 @@ static string ExpandFileName( string str )
   if( str.size() < 2 )
     return str;
   while( (pos = str.find('$')) != string::npos ) {
-    auto iend = find_if(str.begin() + pos + 1, str.end(), []( int c ) {
+    auto spos = static_cast<make_signed<decltype(pos)>::type>(pos);
+    auto iend = find_if(str.begin() + spos + 1, str.end(), []( int c ) {
       return (!isalnum(c) && c != '_');
     });
     auto len = iend - str.begin() - pos - 1;
@@ -273,6 +275,7 @@ OnlineConfig::OnlineConfig( const string& config_file_name )
 OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   : confFileName(opts.cfgfile)
   , rootfilename(opts.rootfile)
+  , goldenrootfilename(opts.goldenfile)
   , fRootFilesPath(opts.rootdir)
   , fPlotFormat(opts.plotfmt)
   , fImageFormat(opts.imgfmt)
@@ -296,6 +299,7 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   try {
     confFileName = ExpandFileName(confFileName);
     rootfilename = ExpandFileName(rootfilename);
+    goldenrootfilename = ExpandFileName(goldenrootfilename);
     fRootFilesPath = ExpandFileName(fRootFilesPath);
     fImagesDir = ExpandFileName(fImagesDir);
     plotsdir = ExpandFileName(plotsdir);
@@ -352,7 +356,7 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
 }
 
 //_____________________________________________________________________________
-int OnlineConfig::CheckLoadIncludeFile(
+int OnlineConfig::CheckLoadIncludeFile( // NOLINT(misc-no-recursion)
   const string& sline, const std::vector<std::string>& strvect )
 {
   if( strvect[0] == "include" ) {
@@ -383,7 +387,7 @@ int OnlineConfig::CheckLoadIncludeFile(
 // Reads in the Config File, and makes the proper calls to put
 //  the information contained into memory.
 // Returns -1 on error, otherwise the number of include files loaded (usually 0).
-int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename )
+int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename ) // NOLINT(misc-no-recursion)
 {
   if( !infile )
     return -1;
@@ -540,7 +544,8 @@ bool OnlineConfig::ParseConfig()
       }},
       {"goldenrootfile",
         1, [&]( const VecStr_t& line ) {
-        goldenrootfilename = ExpandFileName(line[1]);
+        if( !IsSet(goldenrootfilename, line[0]) )
+          goldenrootfilename = ExpandFileName(line[1]);
       }},
       {"protorootfile",
         1, [&]( const VecStr_t& line ) {
@@ -787,7 +792,7 @@ pair<uint_t, uint_t> OnlineConfig::GetPageDim( uint_t page )
 }
 
 //_____________________________________________________________________________
-// Returns the title of the page.
+// Returns the title of the page. Page numbers start at 1.
 //  if it is not defined in the config, then return "Page #"
 string OnlineConfig::GetPageTitle( uint_t page )
 {
@@ -807,7 +812,7 @@ string OnlineConfig::GetPageTitle( uint_t page )
     }
   }
   title = "Page ";
-  title += to_string(page);
+  title += to_string(page+1);
   return title;
 }
 

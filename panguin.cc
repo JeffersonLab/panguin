@@ -5,19 +5,18 @@
 #include <TROOT.h>
 #include <TSystem.h>
 #include <iostream>
-#include <ctime>
-#include <string>
 #include <stdexcept>
+#include <memory>
 
-#define PANGUIN_VERSION "Panguin version 2.4 (07-Oct-2022)"
+#define PANGUIN_VERSION "Panguin version 2.5 (23-Oct-2022)"
 
 using namespace std;
 
-void online( const OnlineConfig::CmdLineOpts& opts );
+unique_ptr<OnlineGUI> online( const OnlineConfig::CmdLineOpts& opts );
 
 int main( int argc, char** argv )
 {
-  string cfgfile{"default.cfg"}, rootfile;
+  string cfgfile{"default.cfg"}, rootfile, goldenfile;
   string plotfmt, imgfmt;
   string cfgdir, rootdir, pltdir, imgdir;
   int run{0};
@@ -36,6 +35,9 @@ int main( int argc, char** argv )
       ->type_name("<run number>");
     cli.add_option("-R,--root-file", rootfile,
                    "ROOT file to process")
+      ->type_name("<file name>");
+    cli.add_option("-G,--goldenroot-file", goldenfile,
+                   "Reference ROOT file")
       ->type_name("<file name>");
     cli.add_flag("-P,-b,--batch", printonly,
                  "No GUI. Save plots to summary file(s)");
@@ -65,7 +67,7 @@ int main( int argc, char** argv )
       ->type_name("<level>");
     cli.set_version_flag("-V,--version", PANGUIN_VERSION);
 
-    CLI11_PARSE(cli, argc, argv);
+    CLI11_PARSE(cli, argc, argv)
 
     if( saveImages ) {
       printonly = true;
@@ -88,9 +90,16 @@ int main( int argc, char** argv )
     }
 
     TApplication theApp("panguin2", &argc, argv, nullptr, -1);
-    online({cfgfile, cfgdir, rootfile, rootdir, plotfmt, imgfmt, pltdir,
-            imgdir, run, verbosity, printonly, saveImages});
-    theApp.Run();
+    auto gui
+      = online({cfgfile, cfgdir, rootfile, goldenfile, rootdir, plotfmt,
+                imgfmt, pltdir, imgdir, run, verbosity, printonly,
+                saveImages});
+    if( gui ) {
+      if( gui->IsPrintOnly() )
+        gui->PrintPages();
+      else
+        theApp.Run(true);
+    }
 
   } catch ( const exception& e ) {
     cerr << "Error while running panguin: " << e.what() << endl;
@@ -101,7 +110,7 @@ int main( int argc, char** argv )
 }
 
 
-void online( const OnlineConfig::CmdLineOpts& opts )
+unique_ptr<OnlineGUI> online( const OnlineConfig::CmdLineOpts& opts )
 {
 
   if( opts.printonly ) {
@@ -112,7 +121,7 @@ void online( const OnlineConfig::CmdLineOpts& opts )
 
   OnlineConfig fconfig(opts);
   if( !fconfig.ParseConfig() )
-    gApplication->Terminate();
+    return nullptr;
 
   TString macropath = gROOT->GetMacroPath();
   macropath += ":./macros";   // for backward compatibility
@@ -121,5 +130,9 @@ void online( const OnlineConfig::CmdLineOpts& opts )
     macropath = ".:" + guipath + ":" + macropath;
   gROOT->SetMacroPath(macropath);
 
-  new OnlineGUI(std::move(fconfig));
+#if __cplusplus >= 201402L
+  return make_unique<OnlineGUI>(std::move(fconfig));
+#else
+  return unique_ptr<OnlineGUI>(new OnlineGUI(std::move(fconfig)));
+#endif
 }

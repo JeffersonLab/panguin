@@ -79,12 +79,14 @@ public:
     explicit CmdLineOpts(std::string f)
       : cfgfile(std::move(f))
     {}
-    CmdLineOpts(std::string f, std::string d, std::string rf, std::string rd,
-                std::string pf, std::string ifm, std::string pd,
-                std::string id, int rn, int v, bool po, bool si)
+    CmdLineOpts( std::string f, std::string d, std::string rf,
+                 std::string gf, std::string rd, std::string pf,
+                 std::string ifm, std::string pd, std::string id,
+                 int rn, int v, bool po, bool si )
       : cfgfile(std::move(f))
       , cfgdir(std::move(d))
       , rootfile(std::move(rf))
+      , goldenfile(std::move(gf))
       , rootdir(std::move(rd))
       , plotfmt(std::move(pf))
       , imgfmt(std::move(ifm))
@@ -98,6 +100,7 @@ public:
     std::string cfgfile;
     std::string cfgdir;
     std::string rootfile;
+    std::string goldenfile;
     std::string rootdir;
     std::string plotfmt;
     std::string imgfmt;

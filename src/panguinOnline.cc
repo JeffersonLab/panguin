@@ -4,14 +4,6 @@
 ///////////////////////////////////////////////////////////////////
 
 #include "panguinOnline.hh"
-#include <string>
-#include <fstream>
-#include <iostream>
-#include <iomanip>
-#include <list>
-#include <sys/stat.h>
-#include <ctime>
-#include <TMath.h>
 #include <TBranch.h>
 #include <TGClient.h>
 #include <TCanvas.h>
@@ -27,16 +19,29 @@
 #include "TEnv.h"
 #include "TRegexp.h"
 #include "TGaxis.h"
+#include <string>
 #include <sstream>
+#include <iostream>
+#include <iomanip>
+#include <list>
+#include <sys/stat.h>
+#include <ctime>
 #include <utility>
 #include <cassert>
 #include <memory>
+#include <type_traits>  // std::make_signed
 
 #define OLDTIMERUPDATE
 
 ClassImp(OnlineGUI)
 
 using namespace std;
+
+template<typename T>
+static inline
+typename std::make_signed<T>::type SINT(T uint) {
+  return static_cast<typename std::make_signed<T>::type>(uint);
+}
 
 //_____________________________________________________________________________
 // Helper function to get value for given key from const std::map&
@@ -122,7 +127,7 @@ string OnlineGUI::SubstitutePlaceholders( string str, const string& var ) const
   ostr.str("");
   if( fConfig.GetPageNoWidth() > 0 )
     ostr << setw(fConfig.GetPageNoWidth()) << setfill('0');
-  ostr << current_page;
+  ostr << current_page + 1;
   str = ReplaceAll(str, "%P", ostr.str());
   // Pad number
   ostr.clear();
@@ -131,6 +136,7 @@ string OnlineGUI::SubstitutePlaceholders( string str, const string& var ) const
     ostr << setw(fConfig.GetPadNoWidth()) << setfill('0');
   ostr << current_pad;
   str = ReplaceAll(str, "%D", ostr.str());
+  // Plot and image formats
   str = ReplaceAll(str, "%E", fConfig.GetPlotFormat());
   str = ReplaceAll(str, "%F", fConfig.GetImageFormat());
   return str;
@@ -140,10 +146,11 @@ string OnlineGUI::SubstitutePlaceholders( string str, const string& var ) const
 //  Class: OnlineGUI
 //
 //    Creates a GUI to display the commands used in OnlineConfig
-//
+//    unless batch mode is set, i.e. config.DoPrintOnly() == true
+//    in which case the caller should invoke PrintPages().
 //
 
-OnlineGUI::OnlineGUI( OnlineConfig&& config )
+OnlineGUI::OnlineGUI( OnlineConfig config )
   : fConfig{std::move(config)}
   , runNumber{0}
   , current_page{0}
@@ -166,59 +173,17 @@ OnlineGUI::OnlineGUI( OnlineConfig&& config )
     }
   }
 
-  if( fPrintOnly ) {
-    PrintPages();
-  } else {
-    CreateGUI(gClient->GetRoot(), 1600, 1200);
-  }
-}
+  if( PrepareRootFiles() )
+    throw runtime_error("Error opening ROOT file");
 
-OnlineGUI::OnlineGUI( const OnlineConfig& config )
-  : OnlineGUI(std::move(OnlineConfig(config))) {}
+  if( !fPrintOnly )
+    CreateGUI(gClient->GetRoot(), 1600, 1200);
+}
 
 void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
 {
-  // Open the RootFile.  Die if it doesn't exist.
-  //  unless we're watching a file.
-  fRootFile = new TFile(fConfig.GetRootFile(), "READ");
-  if( !fRootFile->IsOpen() ) {
-    cerr << "ERROR:  rootfile: " << fConfig.GetRootFile()
-         << " cannot be opened"
-         << endl;
-    if( fConfig.IsMonitor() ) {
-      cout << "Will wait... hopefully.." << endl;
-    } else {
-      gApplication->Terminate();
-    }
-  } else {
-    fFileAlive = kTRUE;
-    runNumber = fConfig.GetRunNumber();
-    // Open the Root Trees.  Give a warning if it's not there..
-    GetFileObjects();
-    GetRootTree();
-    GetTreeVars();
-    for( UInt_t i = 0; i < fRootTree.size(); i++ ) {
-      if( fRootTree[i] == nullptr ) {
-        fRootTree.erase(fRootTree.begin() + i);
-      }
-    }
-  }
-  TString goldenfilename = fConfig.GetGoldenFile();
-  if( !goldenfilename.IsNull() ) {
-    fGoldenFile = new TFile(goldenfilename, "READ");
-    if( !fGoldenFile->IsOpen() ) {
-      cerr << "ERROR: goldenrootfile: " << goldenfilename
-           << " cannot be opened.  Oh well, no comparison plots."
-           << endl;
-      doGolden = kFALSE;
-      fGoldenFile = nullptr;
-    } else {
-      doGolden = kTRUE;
-    }
-  } else {
-    doGolden = kFALSE;
-    fGoldenFile = nullptr;
-  }
+  if( !fRootFile )
+    throw runtime_error("No ROOT file");
 
   // Create the main frame
   fMain = new TGMainFrame(p, w, h);
@@ -266,7 +231,7 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
   fPageListBox->IntegralHeight(kTRUE);
 
   TString buff;
-  for( UInt_t i = 0; i < fConfig.GetPageCount(); i++ ) {
+  for( Int_t i = 0; i < SINT(fConfig.GetPageCount()); ++i ) {
     buff = fConfig.GetPageTitle(i);
     fPageListBox->AddEntry(buff, i);
   }
@@ -385,15 +350,14 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
   if( fVerbosity >= 1 )
     fMain->Print();
 
-  if( fFileAlive ) DoDraw();
+  if( fFileAlive )
+    DoDraw();
 
   if( fConfig.IsMonitor() ) {
     timerNow = new TTimer();
     TTimer::Connect(timerNow, "Timeout()", "OnlineGUI", this, "UpdateCurrentTime()");
     timerNow->Start(1000);  // update every second
-  }
 
-  if( fConfig.IsMonitor() ) {
     timer = new TTimer();
     if( fFileAlive ) {
       TTimer::Connect(timer, "Timeout()", "OnlineGUI", this, "TimerUpdate()");
@@ -464,7 +428,7 @@ void OnlineGUI::DoDraw()
   //keys are "variable", "cut", "drawopt", "title", "treename", "grid", "nostat"
 
   // Draw the histograms.
-  for( UInt_t i = 0; i < draw_count; i++ ) {
+  for( Int_t i = 0; i < SINT(draw_count); i++ ) {
     current_pad = i + 1;
     fConfig.GetDrawCommand(current_page, current_pad - 1, drawcommand);
     fCanvas->cd(current_pad);
@@ -926,6 +890,62 @@ void OnlineGUI::CheckRootFile()
   }
 }
 
+Int_t OnlineGUI::PrepareRootFiles()
+{
+  // Open the RootFile. Die if it doesn't exist unless we're watching a file.
+  // Also open GoldenFile. Warn if it doesn't exist.
+
+  delete fRootFile; fRootFile = nullptr;
+  delete fGoldenFile; fGoldenFile = nullptr;
+
+  fRootFile = new TFile(fConfig.GetRootFile(), "READ");
+  if( !fRootFile->IsOpen() ) {
+    ostringstream ostr;
+    ostr << "ERROR:  rootfile: " << fConfig.GetRootFile()
+         << " cannot be opened";
+    fFileAlive = kFALSE;
+    if( !fPrintOnly && fConfig.IsMonitor() ) {
+      cout << ostr.str() << endl;
+      cout << "Will wait... hopefully.." << endl;
+    } else {
+      cerr << ostr.str() << endl;
+      delete fRootFile;
+      fRootFile = nullptr;
+      return 1;
+    }
+  } else {
+    fFileAlive = kTRUE;
+    runNumber = fConfig.GetRunNumber();
+    // Open the Root Trees.  Give a warning if it's not there..
+    GetFileObjects();
+    GetRootTree();
+    GetTreeVars();
+    for( UInt_t i = 0; i < fRootTree.size(); i++ ) {
+      if( fRootTree[i] == nullptr ) {
+        fRootTree.erase(fRootTree.begin() + i);
+      }
+    }
+  }
+  TString goldenfilename = fConfig.GetGoldenFile();
+  if( !goldenfilename.IsNull() ) {
+    fGoldenFile = new TFile(goldenfilename, "READ");
+    doGolden = fGoldenFile->IsOpen();
+    if( !doGolden ) {
+      cerr << "ERROR: goldenrootfile: " << goldenfilename
+           << " cannot be opened.  Oh well, no comparison plots." << endl;
+      delete fGoldenFile;
+      fGoldenFile = nullptr;
+      if( fFileAlive )
+        fRootFile->cd();
+    }
+  } else {
+    doGolden = kFALSE;
+    fGoldenFile = nullptr;
+  }
+
+  return 0;
+}
+
 Int_t OnlineGUI::OpenRootFile()
 {
   fRootFile = new TFile(fConfig.GetRootFile(), "READ");
@@ -1233,7 +1253,8 @@ void OnlineGUI::PrintToFile()
   fi.fIniDir = StrDup(dir.Data());
 
   new TGFileDialog(gClient->GetRoot(), fMain, kFDSave, &fi);
-  if( fi.fFilename ) fCanvas->Print(fi.fFilename);
+  if( fi.fFilename )
+    fCanvas->Print(fi.fFilename);
 }
 
 void OnlineGUI::PrintPages()
@@ -1241,43 +1262,8 @@ void OnlineGUI::PrintPages()
   // Routine to go through each defined page, and print the output to
   // a postscript file. (good for making sample histograms).
 
-  // Open the RootFile
-  //  unless we're watching a file.
-  fRootFile = new TFile(fConfig.GetRootFile(), "READ");
-  if( !fRootFile->IsOpen() ) {
-    cerr << "ERROR:  rootfile: " << fConfig.GetRootFile()
-         << " cannot be opened"
-         << endl;
-    gApplication->Terminate();
-  } else {
-    fFileAlive = kTRUE;
-    runNumber = fConfig.GetRunNumber();
-    GetFileObjects();
-    GetRootTree();
-    GetTreeVars();
-    for( UInt_t i = 0; i < fRootTree.size(); i++ ) {
-      if( !fRootTree[i] ) {
-        fRootTree.erase(fRootTree.begin() + i);
-      }
-    }
-  }
-  TString goldenfilename = fConfig.GetGoldenFile();
-  if( !goldenfilename.IsNull() ) {
-    fGoldenFile = new TFile(goldenfilename, "READ");
-    if( !fGoldenFile->IsOpen() ) {
-      cerr << "ERROR: goldenrootfile: " << goldenfilename
-           << " cannot be opened.  Oh well, no comparison plots."
-           << endl;
-      doGolden = kFALSE;
-      fGoldenFile = nullptr;
-      fRootFile->cd();
-    } else {
-      doGolden = kTRUE;
-    }
-  } else {
-    doGolden = kFALSE;
-    fGoldenFile = nullptr;
-  }
+  if( !fRootFile )
+    throw runtime_error("No ROOT file");
 
   fCanvas = new TCanvas("fCanvas", "trythis", 1000, 800);
   auto* lt = new TLatex();
@@ -1297,7 +1283,7 @@ void OnlineGUI::PrintPages()
     filename = SubstitutePlaceholders(protofilename);
     auto outdir = DirnameStr(filename.Data());
     if( MakePlotsDir(outdir) )
-      gApplication->Terminate();
+      throw runtime_error("Bad directory name");
   }
 
   TString pagehead = "Summary Plots";
@@ -1314,86 +1300,89 @@ void OnlineGUI::PrintPages()
   gStyle->SetPadBorderMode(0);
   //gStyle->SetHistLineColor(1);
   gStyle->SetHistFillStyle(0);
-  if( !pagePrint ) fCanvas->Print(filename + "[");
-  for( UInt_t i = 0; i < fConfig.GetPageCount(); i++ ) {
+  if( !pagePrint )
+    fCanvas->Print(filename + "[");
+  for( Int_t i = 0; i < SINT(fConfig.GetPageCount()); i++ ) {
     current_page = i;
     DoDraw();
     TString pagename = pagehead;
     pagename += " ";
-    pagename += i;
+    pagename += i + 1;
     pagename += ": ";
     pagename += fConfig.GetPageTitle(current_page);
     lt->SetTextSize(0.025);
     lt->DrawLatex(0.05, 0.98, pagename);
     if( pagePrint ) {
       filename = SubstitutePlaceholders(protofilename);
-      cout << "Printing page " << current_page
+      cout << "Printing page " << current_page + 1
            << " to file = " << filename << endl;
       auto outdir = DirnameStr(filename.Data());
       if( MakePlotsDir(outdir) )
-        gApplication->Terminate();
+        throw runtime_error("Bad directory name");
     }
     fCanvas->Print(filename);
   }
-  if( !pagePrint ) fCanvas->Print(filename + "]");
+  if( !pagePrint )
+    fCanvas->Print(filename + "]");
 
-  gApplication->Terminate();
+}
+
+//_____________________________________________________________________________
+template<typename PTR> inline void DelPtr( PTR*& p )
+{
+  delete p; p = nullptr;
+}
+
+//_____________________________________________________________________________
+void OnlineGUI::DeleteGUI()
+{
+  DelPtr(timer);
+  DelPtr(timerNow);
+  DelPtr(fPrint);
+  DelPtr(fExit);
+  DelPtr(fRunNumber);
+  DelPtr(fPrev);
+  DelPtr(fNext);
+  DelPtr(wile);
+  DelPtr(fNow);
+  DelPtr(fRootFileLastUpdated);
+  DelPtr(fPageListBox);
+  DelPtr(hframe);
+  DelPtr(fEcanvas);
+  DelPtr(vframe);
+  DelPtr(fBottomFrame);
+  DelPtr(fTopframe);
+  DelPtr(fMain);
 }
 
 //_____________________________________________________________________________
 void OnlineGUI::MyCloseWindow()
 {
-  fMain->SendCloseMessage();
   cout << "OnlineGUI Closed." << endl;
   if( timer ) {
     timer->Stop();
-    delete timer;
   }
-  delete fPrint;
-  delete fExit;
-  delete fRunNumber;
-  delete fPrev;
-  delete fNext;
-  delete wile;
-  delete fPageListBox;
-  delete hframe;
-  delete fEcanvas;
-  delete fBottomFrame;
-  delete vframe;
-  delete fTopframe;
-  delete fMain;
-  delete fGoldenFile;
-  delete fRootFile;
+  DeleteGUI();
 
   gApplication->Terminate();
 }
 
+//_____________________________________________________________________________
 void OnlineGUI::CloseGUI()
 {
   // Routine to take care of the Exit GUI button
   fMain->SendCloseMessage();
 }
 
+//_____________________________________________________________________________
 OnlineGUI::~OnlineGUI()
 {
-  //  fMain->SendCloseMessage();
-  if( timer ) {
+  if( timer )
     timer->Stop();
-    delete timer;
+  if( fMain ) {
+    fMain->SendCloseMessage();
+    DeleteGUI();
   }
-  delete fPrint;
-  delete fExit;
-  delete fRunNumber;
-  delete fPrev;
-  delete fNext;
-  delete wile;
-  delete fPageListBox;
-  delete hframe;
-  delete fEcanvas;
-  delete vframe;
-  delete fBottomFrame;
-  delete fTopframe;
-  delete fMain;
-  delete fGoldenFile;
-  delete fRootFile;
+  DelPtr(fGoldenFile);
+  DelPtr(fRootFile);
 }
