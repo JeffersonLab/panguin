@@ -7,21 +7,7 @@ project(panguin LANGUAGES CXX VERSION 2.4)
 # Install in GNU-style directory layout  (copied from japan/CMakeLists.txt)
 include(GNUInstallDirs)
 
-
 message(STATUS "System name ${CMAKE_SYSTEM_NAME}")
-#MAC specific variable
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(CMAKE_MACOSX_RPATH ON)
-    set(CMAKE_SKIP_BUILD_RPATH FALSE)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-    if("${isSystemDir}" STREQUAL "-1")
-        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-    endif()
-endif()
-
 # Local path for cmake modules, before ${CMAKE_ROOT}/Modules/ is checked
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 
@@ -31,9 +17,24 @@ if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   message(STATUS "    Use -DCMAKE_INSTALL_PREFIX=/usr/local to set to something else" )
   set (CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}"
         CACHE PATH "default install path" FORCE )
-else()
-  set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR})
-  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+endif()
+
+# RPATH handling
+if(UNIX)
+  set(CMAKE_SKIP_BUILD_RPATH FALSE)
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+  list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_FULL_LIBDIR}" isSystemDir)
+  # Only set RPATH if not installing into a system directory
+  if(isSystemDir STREQUAL "-1")
+    if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
+      # Linux etc.
+      set(CMAKE_INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+    else()
+      # macOS
+      set(CMAKE_MACOSX_RPATH ON)
+      set(CMAKE_INSTALL_RPATH "@loader_path/../${CMAKE_INSTALL_LIBDIR}")
+    endif()
+  endif()
 endif()
 
 # Load ROOT and setup include directory
