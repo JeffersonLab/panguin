@@ -16,7 +16,8 @@ be interpreted, for example the event header branch.
 The build system is a standard CMake setup. CMake version 3 is required. In the 
 source directory of Panguin, do
 ```
-source /path/to/ROOT/bin/thisroot.sh
+source /path/to/ROOT/bin/thisroot.sh # or "module load root"
+export ANALYZER=/path/to/analyzer    # or "module load analyzer". Optional.
 cmake -S . -B build 
 cmake --build build -j4
 ```
