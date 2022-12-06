@@ -7,7 +7,7 @@
 #include <cassert>
 #include <stdexcept>
 #include <iomanip>    // quoted, setw, setfill
-#include <cctype>     // isalnum, isdigit
+#include <cctype>     // isalnum, isdigit, isspace
 #include <algorithm>  // find_if
 #include <type_traits>// make_signed
 #include <sys/stat.h>
@@ -359,6 +359,8 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
 int OnlineConfig::CheckLoadIncludeFile( // NOLINT(misc-no-recursion)
   const string& sline, const std::vector<std::string>& strvect )
 {
+  if( strvect.empty() )
+    return 0;
   if( strvect[0] == "include" ) {
     if( strvect.size() != 2 || strvect[1].empty() ) {
       cerr << "Too " << (strvect.size() == 1 ? "few" : "many")
@@ -386,13 +388,15 @@ int OnlineConfig::CheckLoadIncludeFile( // NOLINT(misc-no-recursion)
 //_____________________________________________________________________________
 // Reads in the Config File, and makes the proper calls to put
 //  the information contained into memory.
-// Returns -1 on error, otherwise the number of include files loaded (usually 0).
+// Returns < 0 on error, otherwise the number of include files loaded (usually 0).
 int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename ) // NOLINT(misc-no-recursion)
 {
   if( !infile )
     return -1;
 
   const char comment = '#';
+  const string whtspc = " \t";
+  const char dquote = '\"', squote = '\'', openpar = '(', closepar = ')';
   vector<string> strvect;
   string sinput, sline;
   int loaded_here = 0, ret = 0;
@@ -400,13 +404,70 @@ int OnlineConfig::LoadFile( std::ifstream& infile, const string& filename ) // N
     auto pos = sline.find(comment);
     if( pos != string::npos )
       sline.erase(pos);
-    if( sline.find_first_not_of(" \t") == string::npos )
+    if( sline.empty() )
       continue;
-    istringstream istr(sline);
-    string field;
+    // Split the line into whitespace-separated fields, respecting quoting
     strvect.clear();
-    while( istr >> field )
+    pos = 0;
+    while( pos != string::npos && pos < sline.length() ) {
+      if( (pos = sline.find_first_not_of(whtspc, pos)) == string::npos )
+        break;
+      string field;
+      if( sline[pos] == dquote || sline[pos] == squote ) {
+        auto qchar = sline[pos++];
+        auto endp = sline.find_first_of(qchar, pos+1);
+        if( endp == string::npos ) {
+          cerr << "Unbalanced quotes on line: " << sline << endl;
+          return -2;
+        }
+        field = sline.substr(pos, endp - pos);
+        pos = endp + 1;
+      } else {
+        // Copy any unquoted strings through next whitespace.
+        // However, if there is a function argument list, like macro.C("x"),
+        // copy it verbatim, including any quotes and whitespace.
+        auto endp = pos;
+        auto len = sline.length();
+        bool inarg = false, inquote = false;
+        while( endp < len ) {
+          auto c = sline[endp];
+          if( !inarg && !inquote && whtspc.find(c) != string::npos )
+            break;
+          else if( c == openpar && !inquote ) {
+            if( inarg ) {
+              cerr << "Multiple opening parenthesis on line: " << sline << endl;
+              return -4;
+            }
+            inarg = true;
+          }
+          else if( c == closepar && !inquote ) {
+            if( !inarg ) {
+              cerr << "Unmatched closing parenthesis on line: " << sline
+                   << endl;
+              return -4;
+            }
+            inarg = false;
+          }
+          else if( c == dquote ) {
+            inquote = !inquote;
+          }
+          ++endp;
+        }
+        if( inarg ) {
+          cerr << "Unbalanced parentheses on line: " << sline << endl;
+          return -4;
+        }
+        if( inquote ) {
+          cerr << "Unbalanced quotes on line: " << sline << endl;
+          return -2;
+        }
+        field = sline.substr(pos, endp - pos);
+        pos = endp;
+      }
       strvect.push_back(std::move(field));
+    }
+    if( strvect.empty() )
+      continue;
     int st;
     if( (st = CheckLoadIncludeFile(sline, strvect)) > 0 ) {
       ret += st;
@@ -852,7 +913,7 @@ uint_t OnlineConfig::GetDrawCount( uint_t page )
 // Return map<string,string> in out_command:
 // Following options are implemented:
 //  1. "-drawopt" --> set draw options for histograms and tree variables
-//  2. "-title" --> set title, enclose in double quotes
+//  2. "-title" --> set title, enclose in double quotes if multiple words
 //  3. "-tree" --> set tree name
 //  4. "-grid" --> set "grid" option
 //  5. "-logx, -logy, -logz" --> draw with log x,y,z axis
@@ -867,9 +928,10 @@ void OnlineConfig::GetDrawCommand(
 {
   out_command.clear();
 
-  //vector <string> out_command(6);
   vector<uint_t> command_vector = GetDrawIndex(page);
   uint_t index = command_vector[nCommand];
+  const auto& line = sConfFile[index];
+  auto nfields = line.size();
 
   if( fVerbosity > 1 ) {
     cout << __PRETTY_FUNCTION__ << "\t" << __LINE__ << endl;
@@ -877,90 +939,61 @@ void OnlineConfig::GetDrawCommand(
          << nCommand << ")" << endl;
   }
 
-  // for(uint_t i=0; i<out_command.size(); i++) {
-  //   out_command[i] = "";
-  // }
-
   // First line is the variable
-  if( !sConfFile[index].empty() ) {
-    out_command["variable"] = sConfFile[index][0];
-  }
+  if( line.empty() )
+    return;
 
-  if( out_command["variable"] == "macro" && sConfFile[index].size() > 1 ) {
+  out_command["variable"] = line[0];
 
-    string macrocmd; //interpret the rest of the line as the macro to execute:
-    for( int i = 1; i < sConfFile[index].size(); i++ ) {
-      macrocmd += sConfFile[index][i];
+  uint_t nexti = 1;
+
+  if( out_command["variable"] == "macro" ) {
+    if( nfields > 1 ) {
+      out_command["macro"] = line[1];
+      nexti = 2;  // parse options below
+    } else {
+      cerr << "Error: macro command without argument "
+           << "at page/command = " << page << "/" << nCommand
+           << endl;
+      out_command.clear();
+      return;
     }
-
-    out_command["macro"] = macrocmd;
+  } else if( out_command["variable"] == "loadmacro" ) {
+    if( nfields > 2 ) {
+      out_command["library"] = line[1]; //shared library to load
+      out_command["macro"] = line[2]; //macro command to execute
+    } else {
+      cerr << "Error: not enough arguments for loadmacro command, expected 2, "
+              "found" << nfields-1
+           << "at page/command = " << page << "/" << nCommand
+           << endl;
+    }
     return;
-  }
-
-  if( out_command["variable"] == "loadmacro" && sConfFile[index].size() > 2 ) {
-    out_command["library"] = sConfFile[index][1]; //shared library to load
-    out_command["macro"] = sConfFile[index][2]; //macro command to execute
+  } else if( out_command["variable"] == "loadlib" ) {
+    if( nfields > 1 ) {
+      out_command["library"] = line[1]; //shared library to load
+    } else {
+      cerr << "Error: loadlib command without argument "
+           << "at page/command = " << page << "/" << nCommand
+           << endl;
+    }
     return;
-  }
-
-  if( out_command["variable"] == "loadlib" && sConfFile[index].size() > 1 ) {
-    out_command["library"] = sConfFile[index][1]; //shared library to load
   }
 
   // Now go through the rest of that line..
-  for( uint_t i = 1; i < sConfFile[index].size(); i++ ) {
-    if( sConfFile[index][i] == "-drawopt" && i + 1 < sConfFile[index].size() ) {
+  for( uint_t i = nexti; i < nfields; i++ ) {
+    if( line[i] == "-drawopt" && i + 1 < nfields ) {
       // if(out_command[2].empty()){
-      //   out_command[2] = sConfFile[index][i+1];
+      //   out_command[2] = line[i+1];
       //   i = i+1;
       // } else {
       //   cout << "Error: Multiple types in line: " << index << endl;
       //   exit(1);
       // }
-      out_command["drawopt"] = sConfFile[index][i + 1];
+      out_command["drawopt"] = line[i + 1];
       i++;
-    } else if( sConfFile[index][i] == "-title" && i + 1 < sConfFile[index].size() ) {
-      // Put the entire title, (must be) surrounded by quotes, as one string
-      string title;
-      if( sConfFile[index][i + 1].front() != '\"' ) {
-        cout << "Error: title must be surrounded by double quotes. Page: " << page << "--" << GetPageTitle(page)
-             << "\t coomand: " << nCommand << endl;
-        exit(1); // FIXME: exit?
-      }
-      for( auto j = i + 1; j < sConfFile[index].size(); j++ ) {
-        string word = sConfFile[index][j];
-        if( word == "\"" ) { // single " surrounded by space
-          if( title.empty() ) continue;  // beginning "
-          else {  // ending "
-            i = j;
-            break;
-          }
-        } else if( word.front() == '\"' && word.back() == '\"' ) {
-          title += ReplaceAll(word, "\"", "");
-          i = j;
-          break;
-        } else if( word.front() == '\"' ) {
-          title = ReplaceAll(word, "\"", "");
-        } else if( word.back() == '\"' ) {
-          title += " " + ReplaceAll(word, "\"", "");
-          i = j;
-          break;
-        } else if( title.empty() ) {
-          title = word;
-        } else {
-          //  This case uses neither "i = j;" or "break;", because we want to
-          //  be able to include all the words in the title. The title will
-          //  end before the end of the line only if it is delimited by quotes.
-          title += " " + word;
-        }
-      }
-      if( i == sConfFile[index].size() && sConfFile[index][i - 1].back() != '\"' ) {
-        // unmatched double quote
-        cout << "Error, unmatched double quote, please check you config file. Quitting" << endl;
-        exit(1);  // FIXME: exit?
-      }
-
-      out_command["title"] = title;
+    } else if( line[i] == "-title" && i + 1 < nfields ) {
+      out_command["title"] = line[i + 1];
 
       // if (out_command[3].empty()){
       //   out_command[3] = title;
@@ -968,17 +1001,17 @@ void OnlineConfig::GetDrawCommand(
       //   cout << "Error: Multiple titles in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
       //   exit(1);
       // }
-    } else if( sConfFile[index][i] == "-tree" && i + 1 < sConfFile[index].size() ) {
-      out_command["tree"] = sConfFile[index][i + 1];
+    } else if( line[i] == "-tree" && i + 1 < nfields ) {
+      out_command["tree"] = line[i + 1];
       i++;
       // if (out_command[4].empty()){
-      //   out_command[4] = sConfFile[index][i+1];
+      //   out_command[4] = line[i+1];
       //   i = i+1;
       // } else {
       //   cout << "Error: Multiple trees in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
       //   exit(1);
       // }
-    } else if( sConfFile[index][i] == "-grid" ) {
+    } else if( line[i] == "-grid" ) {
       out_command["grid"] = "grid";
       // if (out_command[5].empty()){ // grid option only works with TreeDraw
       //   out_command[5] = "grid";
@@ -986,20 +1019,20 @@ void OnlineConfig::GetDrawCommand(
       //   cout << "Error: Multiple setup of grid in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
       //   exit(1);
       // }
-    } else if( sConfFile[index][i] == "-logx" ) {
+    } else if( line[i] == "-logx" ) {
       out_command["logx"] = "logx";
-    } else if( sConfFile[index][i] == "-logy" ) {
+    } else if( line[i] == "-logy" ) {
       out_command["logy"] = "logy";
-    } else if( sConfFile[index][i] == "-logz" ) {
+    } else if( line[i] == "-logz" ) {
       out_command["logz"] = "logz";
-    } else if( sConfFile[index][i] == "-nostat" ) {
+    } else if( line[i] == "-nostat" ) {
       out_command["nostat"] = "nostat";
-    } else if( sConfFile[index][i] == "-noshowgolden" ) {
+    } else if( line[i] == "-noshowgolden" ) {
       out_command["noshowgolden"] = "noshowgolden";
     } else {  // every thing else is regarded as cut
-      out_command["cut"] = sConfFile[index][i];
+      out_command["cut"] = line[i];
       // if (out_command[1].empty()) {
-      //   out_command[1] = sConfFile[index][i];
+      //   out_command[1] = line[i];
       // } else {
       //   cout << "Error: Multiple cut conditions in Page: " << page << "--" << GetPageTitle(page).Data() << "\t coomand: " << nCommand << endl;
       //   exit(1);
@@ -1008,8 +1041,8 @@ void OnlineConfig::GetDrawCommand(
   }
 
   if( fVerbosity >= 1 ) {
-    cout << sConfFile[index].size() << ": ";
-    for( const auto& field: sConfFile[index] ) {
+    cout << nfields << ": ";
+    for( const auto& field: line ) {
       cout << field << " ";
     }
     cout << endl;
