@@ -53,10 +53,10 @@ endif()
 
 # CLI11 command line parser
 file(DOWNLOAD
-  "https://github.com/CLIUtils/CLI11/releases/download/v2.2.0/CLI11.hpp"
+  "https://github.com/CLIUtils/CLI11/releases/download/v2.3.2/CLI11.hpp"
   "${CMAKE_BINARY_DIR}/CLI11.hpp"
   EXPECTED_HASH
-    SHA256=e0bd8d113ed526ca9a86fafa8f7e0c51dc9d20821c4d0fd3a8697f21c049722c
+    SHA256=ba83806399a66634ca8f8d292df031e5ed651315ceb9a6a09ba56f88d75f1797
   STATUS _ret
 )
 list(GET _ret 0 _retcode)
