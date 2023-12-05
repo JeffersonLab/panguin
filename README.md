@@ -88,7 +88,7 @@ it will be omitted from the generated plots.
 Name of ROOT file with reference plots. If the file is not found, a warning 
 is printed, and no reference plots are generated.
 
-### -E,--plot-format \<fmt\>
+### -E, --plot-format \<fmt\>
 
 Sets the output plot file format. The default is `pdf`. Also supported
 are `png`, `gif`, `jpg`, `ps` and `eps`. For formats other than `pdf`,
@@ -96,7 +96,7 @@ one output file per page is generated, and the file name is
 generated from the pattern specified by the `protoplotpagefile`
 command (see later).
 
-### -C,--config-dir \<path\>
+### -C, --config-path, --config-dir \<path\>
 
 Search for configuration files and plot macros in the given directory or
 directory path (= list of directories separated by colons). The current working
@@ -125,14 +125,14 @@ Specifies the search directory or path for ROOT files, similar to
 The contents of the environment variable `ROOTFILES` are automatically
 appended to this path (even if --root-dir isn't given on the command line).
 
-### -O,--plots-dir \<dir\>
+### -O, --plots-dir \<dir\>
 
 Specifies the directory where summary plots should be written.
 This directory will be created if it does not exist, permissions allowing.
 The value specified here will be ignored if `protoplotfile` or
 `protoplotpagefile` are absolute paths.
 
-### -I,--images
+### -I, --images
 
 Save each individual plots as an image file. This option automatically
 enables batch mode (-P). Summary plots continue to be generated in addition
@@ -140,12 +140,12 @@ to the individual image files. The image file name patterns can be
 customized with the `protoimagefile` and `protomacroimagefile` commands
 in the configuration file.
 
-### -F,--image-format \<fmt\>
+### -F, --image-format \<fmt\>
 
 Define the file format for individual image files. The default is `png`.
 See the descrption of --plot-format.
 
-### -H,--images-dir \<dir\>
+### -H, --images-dir \<dir\>
 
 Like --plots-dir, defines the directory where individual image files are
 written. The default is the same directory as --plots-dir. 

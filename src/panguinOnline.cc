@@ -221,7 +221,7 @@ void OnlineGUI::CreateGUI( const TGWindow* p, UInt_t w, UInt_t h )
   fMain->AddFrame(fTopframe, new TGLayoutHints(kLHintsExpandX
                                                | kLHintsExpandY, 10, 10, 10, 1));
 
-  // Create a verticle frame widget
+  // Create a vertical frame widget
   //  This will hold the listbox
   vframe = new TGVerticalFrame(fTopframe, UInt_t(w * 0.3), UInt_t(h * 0.9));
   vframe->SetBackgroundColor(mainguicolor);
@@ -1261,7 +1261,7 @@ void OnlineGUI::PrintToFile()
 void OnlineGUI::PrintPages()
 {
   // Routine to go through each defined page, and print the output to
-  // a postscript file. (good for making sample histograms).
+  // a PDF file. (good for making sample histograms).
 
   if( !fRootFile )
     throw runtime_error("No ROOT file");

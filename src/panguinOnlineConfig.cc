@@ -111,7 +111,8 @@ OpenInPath( const string& filename, const string& path, ifstream& infile )
       foundpath.clear();
       infile.setstate(ios_base::failbit);
     }
-  }
+  } else
+    foundpath.clear();
   return foundpath;
 }
 
@@ -351,7 +352,8 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
     cerr << e.what() << endl;
     fFoundCfg = false;
   }
-  if( ret > 0 )
+  infile.close();
+  if( ret >= 0 )
     cout << sConfFile.size() << " total configuration lines read" << endl;
 }
 
@@ -579,6 +581,7 @@ bool OnlineConfig::ParseConfig()
 
   try {
     // Find "newpage" commands and store their locations and lengths
+    pageInfo.clear();
     auto first_page = ParsePageInfo(ALL(sConfFile), pageInfo);
 
     // List of defined commands and corresponding actions
@@ -776,7 +779,7 @@ bool OnlineConfig::ParseConfig()
 // Returns the defined cut, according to the identifier
 const string& OnlineConfig::GetDefinedCut( const string& ident )
 {
-  static const string nullstr{};
+  static const string nullstr;
 
   for( const auto& cut: cutList ) {
     if( cut.first == ident ) {
@@ -791,6 +794,7 @@ const string& OnlineConfig::GetDefinedCut( const string& ident )
 vector<string> OnlineConfig::GetCutIdent()
 {
   vector<string> out;
+  out.reserve(cutList.size());
 
   for( const auto& cut: cutList ) {
     out.push_back(cut.first);

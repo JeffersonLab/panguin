@@ -43,7 +43,7 @@ int main( int argc, char** argv )
   cli.add_option("-E,--plot-format", plotfmt,
                  "Plot format (pdf, png, jpg ...)")
     ->type_name("<fmt>");
-  cli.add_option("-C,--config-dir", cfgdir,
+  cli.add_option("-C,--config-path,--config-dir", cfgdir,
                  "Search path for configuration files & macros "
                  "(\":\"-separated)")
     ->type_name("<path>");
@@ -74,11 +74,10 @@ int main( int argc, char** argv )
       imgdir = pltdir;
   }
 
-  if( verbosity <= 0 ) {
-    verbosity = 0;
-  } else if( verbosity > 0 ) {
+  if( verbosity > 0 )
     cout << cli.config_to_str(true, false);
-  }
+  else
+    verbosity = 0;
 
   if( !gSystem->AccessPathName("./rootlogon.C") ) {
     gROOT->ProcessLine(".x rootlogon.C");
