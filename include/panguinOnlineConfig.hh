@@ -62,12 +62,12 @@ class OnlineConfig {
                             const VecStr_t& strvect );
 
   struct CommandDef {
-    CommandDef( std::string c, size_t n,
-                std::function<void(const VecStr_t&)> a )
-      : cmd(std::move(c)), narg(n), action(std::move(a)) {}
-    std::string cmd;
-    size_t narg = 0;
-    std::function<void(const VecStr_t&)> action = nullptr;
+    CommandDef( std::string cmd, size_t nargs,
+                std::function<void(const VecStr_t&)> action )
+      : cmd_{std::move(cmd)}, nargs_{nargs}, action_{std::move(action)} {}
+    std::string cmd_{};
+    size_t nargs_{0};
+    std::function<void(const VecStr_t&)> action_{nullptr};
   };
   static int ParseCommands( ConfLines_t::const_iterator pos,
                             ConfLines_t::const_iterator end,

@@ -537,24 +537,31 @@ int OnlineConfig::ParseCommands( ConfLines_t::const_iterator pos,
   for( ; pos != end; ++pos ) {
     const auto& line = *pos;
     for( const auto& item: items ) {
-      if( item.cmd != line[0] )
+      if( item.cmd_ != line[0] )
         continue;
       auto narg = line.size()-1;
-      if( narg != item.narg ) {
-        if( narg < item.narg ) {
-          cerr << "ERROR: not enough arguments for " << item.cmd << " command,"
-               << "needs " << item.narg << ", found " << narg
+      size_t required_nargs = item.nargs_;
+      bool exact = true;  // Number of arguments must match exactly
+      if( required_nargs >= 100 ) {
+        required_nargs %= 100;
+        exact = false;
+      }
+      if( narg != required_nargs ) {
+        if( narg < required_nargs ) {
+          cerr << "ERROR: not enough arguments for " << item.cmd_ << " command,"
+               << "needs " << required_nargs << ", found " << narg
                << ". Command skipped." << endl;
           continue;
-        } else
-          cerr << "WARNING: too many arguments for " << item.cmd << " command,"
-               << "expect " << item.narg << ", found " << narg
+        } else if( exact ) {
+          cerr << "WARNING: too many arguments for " << item.cmd_ << " command,"
+               << "expect " << required_nargs << ", found " << narg
                << ", ignoring extras" << endl;
+        }
       }
-      if( item.action )
-        item.action(line);
+      if( item.action_ )
+        item.action_(line);
       else
-        cerr << "WARNING: no action for " << item.cmd << " command? "
+        cerr << "WARNING: no action for " << item.cmd_ << " command? "
              << "Call expert." << endl;
       break;
     }
