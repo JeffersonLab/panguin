@@ -588,11 +588,11 @@ bool OnlineConfig::ParseConfig()
         fMonitor = true;
       }},
       {"2DbinsX",
-        0, [&]( const VecStr_t& line ) {
+        1, [&]( const VecStr_t& line ) {
         hist2D_nBinsX = stoi(line[1]);
       }},
       {"2DbinsY",
-        0, [&]( const VecStr_t& line ) {
+        1, [&]( const VecStr_t& line ) {
         hist2D_nBinsY = stoi(line[1]);
       }},
       {"definecut",
