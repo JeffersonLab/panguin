@@ -26,6 +26,7 @@
 #define UPDATETIME 10000
 
 class OnlineGUI {
+  OnlineConfig fConfig;
   TGMainFrame* fMain = nullptr;
   TGHorizontalFrame* fTopframe = nullptr;
   TGVerticalFrame* vframe = nullptr;
@@ -43,31 +44,35 @@ class OnlineGUI {
   TGLabel* fRunNumber = nullptr;
   TGTextButton* fPrint = nullptr;
   TCanvas* fCanvas = nullptr; // Present Embedded canvas
-  OnlineConfig fConfig;
-  Int_t current_page;
-  Int_t current_pad;
   TFile* fRootFile = nullptr;
   TFile* fGoldenFile = nullptr;
-  Bool_t doGolden;
-  std::vector<TTree*> fRootTree;
-  std::vector<Int_t> fTreeEntries;
-  std::vector<std::pair<TString, TString> > fileObjects;
-  std::vector<std::vector<TString> > treeVars;
-  Int_t runNumber;
   TTimer* timer = nullptr;
   TTimer* timerNow = nullptr; // used to update time
-  Bool_t fUpdate;
-  Bool_t fFileAlive;
-  Bool_t fPrintOnly;
-  Bool_t fSaveImages;
   TH1* mytemp1d = nullptr;
   TH2* mytemp2d = nullptr;
   TH3* mytemp3d = nullptr;
   TH1* mytemp1d_golden = nullptr;
   //TH2* mytemp2d_golden = nullptr;
   TH3* mytemp3d_golden = nullptr;
+  Int_t current_page;
+  Int_t current_pad;
+  Int_t runNumber;
+  Int_t fVerbosity;
+  Bool_t doGolden;
+  Bool_t fUpdate;
+  Bool_t fFileAlive;
+  Bool_t fPrintOnly;
+  Bool_t fSaveImages;
 
-  int fVerbosity;
+  struct RootFileObj {
+    TString name;   // Full path to object (dir/objname)
+    TString title;  // Object title
+    TString type;   // Object class name
+  };
+  std::vector<TTree*> fRootTree;
+  std::vector<Int_t> fTreeEntries;
+  std::vector<RootFileObj> fileObjects;
+  std::vector<std::vector<TString> > treeVars;
 
   std::string SubstitutePlaceholders(
     std::string str, const std::string& var = std::string() ) const;
@@ -87,6 +92,7 @@ public:
   Bool_t IsHistogram( const TString& objectname );
   Bool_t IsPrintOnly() const { return fPrintOnly; }
   void GetFileObjects();
+  void ScanFileObjects( TIter& iter, const TString& directory );
   void GetTreeVars();
   void GetRootTree();
   UInt_t GetTreeIndex( const TString& );

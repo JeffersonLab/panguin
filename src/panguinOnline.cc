@@ -543,25 +543,57 @@ Bool_t OnlineGUI::IsHistogram( const TString& objectname )
   // Utility to determine if the objectname provided is a histogram
 
   for( const auto& fileObject: fileObjects ) {
-    if( fileObject.first.Contains(objectname) ) {
+    if( fileObject.name.Contains(objectname) ) {
       if( fVerbosity >= 2 )
-        cout << fileObject.first << "      "
-             << fileObject.second << endl;
+        cout << fileObject.name << "      "
+             << fileObject.type << endl;
 
-      if( fileObject.second.Contains("TH") )
+      if( fileObject.type.Contains("TH") )
         return kTRUE;
     }
   }
   return kFALSE;
 }
 
+void OnlineGUI::ScanFileObjects( TIter& iter, const TString& directory ) // NOLINT(*-no-recursion)
+{
+  TKey* key;
+  bool need_slash = !directory.IsNull() && !directory.EndsWith("/");
+  while( (key = (TKey*) iter()) ) {
+    TString objname = directory;
+    if( need_slash ) objname.Append("/");
+    objname.Append(key->GetName());
+    TString objtype = key->GetClassName();
+    TString objtitle = key->GetTitle();
+
+    if( fVerbosity > 1 )
+      cout << "Key = " << objname << " " << objtype << endl;
+
+    if( !objtype.BeginsWith("TDirectory") ) {  // TDirectoryFile nowadays
+      // Normal case
+      fileObjects.push_back(
+        std::move(RootFileObj{std::move(objname), std::move(objtitle),
+                                std::move(objtype)}));
+
+    } else {
+      // Subdirectory
+      auto* thisdir = fRootFile->Get<TDirectory>(objname);
+      if( !thisdir )
+        continue;
+      TIter dir_iter(thisdir->GetListOfKeys());
+      ScanFileObjects(dir_iter, objname);
+    }
+  }
+}
+
 void OnlineGUI::GetFileObjects()
 {
   // Utility to find all objects within a File (TTree, TH1F, etc).
   //  The pair stored in the vector is <ObjName, ObjType>
+  //  For histograms, the title is also stored
+  //    (in case the name is not very descriptive... like when
+  //    using h2root)
   //  If there's no good keys.. do nothing.
-  if( fVerbosity >= 1 )
-    cout << "Keys = " << fRootFile->ReadKeys() << endl;
 
   if( fRootFile->ReadKeys() == 0 ) {
     fUpdate = kFALSE;
@@ -571,22 +603,16 @@ void OnlineGUI::GetFileObjects()
     return;
   }
   fileObjects.clear();
-  TIter next(fRootFile->GetListOfKeys());
-  TKey* key;
+  auto* keylst = fRootFile->GetListOfKeys();
+  if( !keylst || keylst->GetSize() == 0 ) {
+    cerr << "Empty ROOT file. Can't make any plots \U0001F622" << endl;
+    return;
+  }
+  TIter next(keylst);
 
   // Do the search
-  while( (key = (TKey*) next()) ) {
-    if( fVerbosity >= 1 )
-      cout << "Key = " << key << endl;
+  ScanFileObjects(next, "");
 
-    TString objname = key->GetName();
-    TString objtype = key->GetClassName();
-
-    if( fVerbosity >= 1 )
-      cout << objname << " " << objtype << endl;
-
-    fileObjects.emplace_back(objname, objtype);
-  }
   fUpdate = kTRUE;
 }
 
@@ -633,11 +659,11 @@ void OnlineGUI::GetRootTree()
   for( const auto& fileObject: fileObjects ) {
 
     if( fVerbosity >= 2 )
-      cout << "Object = " << fileObject.second <<
-           "     Name = " << fileObject.first << endl;
+      cout << "Object = " << fileObject.type <<
+           "     Name = " << fileObject.name << endl;
 
-    if( fileObject.second.Contains("TTree") )
-      found.push_back(fileObject.first);
+    if( fileObject.type.Contains("TTree") )
+      found.push_back(fileObject.name);
   }
 
   // Remove duplicates, then insert into fRootTree
@@ -1047,8 +1073,8 @@ void OnlineGUI::HistDraw( const cmdmap_t& command )
   if( var.empty() ) return;
   const char* cvar = var.c_str();
   for( const auto& fileObject: fileObjects ) {
-    if( fileObject.first.Contains(var) ) {
-      if( fileObject.second.Contains("TH1") ) {
+    if( fileObject.name.Contains(var) ) {
+      if( fileObject.type.Contains("TH1") ) {
         if( showGolden ) fRootFile->cd();
         mytemp1d = dynamic_cast<TH1*> (gDirectory->Get(cvar));
         assert(mytemp1d);
@@ -1080,7 +1106,7 @@ void OnlineGUI::HistDraw( const cmdmap_t& command )
         }
         break;
       }
-      if( fileObject.second.Contains("TH2") ) {
+      if( fileObject.type.Contains("TH2") ) {
         if( showGolden ) fRootFile->cd();
         mytemp2d = dynamic_cast<TH2*> (gDirectory->Get(cvar));
         assert(mytemp2d);
@@ -1108,7 +1134,7 @@ void OnlineGUI::HistDraw( const cmdmap_t& command )
         }
         break;
       }
-      if( fileObject.second.Contains("TH3") ) {
+      if( fileObject.type.Contains("TH3") ) {
         if( showGolden ) fRootFile->cd();
         mytemp3d = dynamic_cast<TH3*> (gDirectory->Get(cvar));
         assert(mytemp3d);
