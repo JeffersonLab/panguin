@@ -707,13 +707,17 @@ void OnlineGUI::MacroDraw( const cmdmap_t& command )
   //  plot it in its own pad.  One plot per macro, please.
 
   const string& macro = getMapVal(command, "macro");
-  if( macro.empty() ) {
-    cout << "macro command doesn't contain a macro to execute" << endl;
-    return;
-  }
+  assert(!macro.empty()); // assured in OnlineConfig::GetDrawOption
+  auto optstat = gStyle->GetOptStat();
+  bool nostat = !getMapVal(command, "nostat").empty();
+  if( nostat )
+    // The macro may override this, but let's try at least
+    gStyle->SetOptStat(0);
 
   if( doGolden ) fRootFile->cd();
   gROOT->Macro(macro.c_str());
+  if( nostat )
+    gStyle->SetOptStat(optstat);
 }
 
 void OnlineGUI::LoadDraw( const cmdmap_t& command )
@@ -997,11 +1001,17 @@ void OnlineGUI::SaveImage( TObject* o, const cmdmap_t& command ) const
       auto c = MakeCanvas();
       SetupPad(command);
       const char* opt = getMapVal(command, "drawopt").c_str();
+      auto optstat = gStyle->GetOptStat();
+      bool nostat = !getMapVal(command, "nostat").empty();
+      if( nostat )
+        gStyle->SetOptStat(0);
       o->Draw(opt);
       auto outfile = SubstitutePlaceholders(fConfig.GetProtoImageFile(), var);
       auto outdir = DirnameStr(outfile);
       if( MakePlotsDir(outdir) == 0 )
         c->SaveAs(outfile.c_str());
+      if( nostat )
+        gStyle->SetOptStat(optstat);
     }
   }
 }
@@ -1178,6 +1188,9 @@ void OnlineGUI::TreeDraw( const cmdmap_t& command )
     gPad->SetRightMargin(0.15);
   string mtitle = getMapVal(command, "title");
 
+  auto optstat = gStyle->GetOptStat();
+  bool nostat = !getMapVal(command, "nostat").empty();
+
   if( fVerbosity >= 3 )
     cout << "\tDraw option:" << mopt << " and histo name " << histoname << endl;
   if( iTree <= fRootTree.size() ) {
@@ -1192,10 +1205,17 @@ void OnlineGUI::TreeDraw( const cmdmap_t& command )
         cout << "\tProcessing from tree: " << iTree << "\t" << fRootTree[iTree]->GetTitle() << "\t"
              << fRootTree[iTree]->GetName() << endl;
     }
-    Long64_t nentries = fRootTree[iTree]->Draw(var, cut, mopt.c_str());
+    TString drawopt = mopt;
+    if( nostat )
+      gStyle->SetOptStat(0);
+    else if( var.Contains(":") && drawopt.IsNull() )
+      drawopt = "scat";
+    Long64_t nentries = fRootTree[iTree]->Draw(var, cut, drawopt);
     if( getMapVal(command, "grid") == "grid" ) {
       gPad->SetGrid();
     }
+    if( nostat )
+      gStyle->SetOptStat(optstat);
 
     TObject* hobj = gROOT->FindObject(histoname);
     if( fVerbosity >= 3 )
@@ -1212,7 +1232,7 @@ void OnlineGUI::TreeDraw( const cmdmap_t& command )
         //  since they are exactly the same, you likely won't notice (or it will complain at you).
         TString tmpstring(var);
         tmpstring += cut.GetTitle();
-        tmpstring += mopt;
+        tmpstring += drawopt;
         tmpstring += mtitle;
         TString myMD5 = tmpstring.MD5();
         TH1* thathist = (TH1*) hobj;
