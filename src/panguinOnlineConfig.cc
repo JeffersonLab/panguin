@@ -134,7 +134,7 @@ static string ExpandFileName( string str )
   if( str.empty() )
     return str;
   size_t pos = str.find('~');
-  if( pos == 0 || str[pos-1] == ':' ) {
+  if( pos != string::npos && (pos == 0 || str[pos-1] == ':') ) {
     auto* home = getenv("HOME");
     if( home )
       str.replace(pos, 1, home);
