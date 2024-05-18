@@ -150,6 +150,22 @@ string OnlineGUI::SubstitutePlaceholders( string str, const string& var ) const
 //    in which case the caller should invoke PrintPages().
 //
 
+// Default constructor, for ROOT RTTI and auxiliary functions
+OnlineGUI::OnlineGUI()
+  : fConfig()
+  , runNumber{0}
+  , current_page{0}
+  , current_pad{0}
+  , doGolden{false}
+  , fUpdate{false}
+  , fFileAlive{false}
+  , fVerbosity{0}
+  , fPrintOnly{false}
+  , fSaveImages{false}
+{
+}
+
+// Regular constructor. Store config, open and scan ROOT files, create GUIOnlineGUI::OnlineGUI( OnlineConfig config )
 OnlineGUI::OnlineGUI( OnlineConfig config )
   : fConfig{std::move(config)}
   , runNumber{0}
@@ -538,7 +554,7 @@ void OnlineGUI::CheckPageButtons()
   }
 }
 
-Bool_t OnlineGUI::IsHistogram( const TString& objectname )
+Bool_t OnlineGUI::IsHistogram( const TString& objectname ) const
 {
   // Utility to determine if the objectname provided is a histogram
 
@@ -553,6 +569,13 @@ Bool_t OnlineGUI::IsHistogram( const TString& objectname )
     }
   }
   return kFALSE;
+}
+
+Bool_t OnlineGUI::IsHistogram( const RootFileObj& fileObject )
+{
+  const auto& type = fileObject.type;
+  return type.BeginsWith("TH") && type.Length() > 2 &&
+         (type[2] == '1' || type[2] == '2' || type[2] == '3');
 }
 
 void OnlineGUI::ScanFileObjects( TIter& iter, const TString& directory ) // NOLINT(*-no-recursion)
@@ -1372,6 +1395,77 @@ void OnlineGUI::PrintPages()
   if( !pagePrint )
     fCanvas->Print(filename + "]");
 
+}
+
+//_____________________________________________________________________________
+// Print one RootFileObj
+void OnlineGUI::Print( const RootFileObj& fobj, int typew, int namew,
+                       bool do_title )
+{
+  ios_base::fmtflags fmt = cout.flags();
+  cout << left << setw(typew) << fobj.type
+       << "  " << setw(namew) << fobj.name;
+  if( do_title ) {
+    cout << "  \"" << fobj.title << "\"";
+  }
+  cout << endl;
+  cout.flags(fmt);
+}
+
+//_____________________________________________________________________________
+// Read and print objects ROOT file 'scanfile'
+void OnlineGUI::InspectRootFile( const string& scanfile )
+{
+  delete fRootFile;
+  fRootFile = new TFile(scanfile.c_str(), "READ");
+  if( fRootFile->IsZombie() || !fRootFile->IsOpen() ) {
+    cerr << "Error opening " << scanfile << endl;
+    delete fRootFile; fRootFile = nullptr;
+    return;
+  }
+  vector<const RootFileObj*> hists, trees, misc;
+  int typew = 0, namew = 0;
+  GetFileObjects();
+  auto nobj = fileObjects.size();
+  hists.reserve(nobj); trees.reserve(4); misc.reserve(4);
+  for( const auto& fobj: fileObjects ) {
+    if( IsHistogram(fobj) )
+      hists.push_back(&fobj);
+    else if( fobj.type == "TTree" )
+      trees.push_back(&fobj);
+    else
+      misc.push_back(&fobj);
+    if( fobj.type.Length() > typew )
+      typew = fobj.type.Length();
+    if( fobj.name.Length() > namew )
+      namew = fobj.name.Length();
+  }
+
+  cout << "ROOT file: " << scanfile << endl;
+  if( !hists.empty() ) {
+    cout << hists.size() << " histograms: " << endl;
+    for( const auto* fobj: hists )
+      Print(*fobj, typew, namew);
+    cout << endl;
+  }
+
+  if( !trees.empty() ) {
+    cout << trees.size() << " TTrees:" << endl;
+    for( const auto* fobj: trees )
+      Print(*fobj, typew, namew, false);
+    //TODO: tree variables
+    cout << endl;
+  }
+
+  if( !misc.empty() ) {
+    cout << misc.size() << " other objects:" << endl;
+    for( const auto* fobj: misc )
+      Print(*fobj, typew, namew);
+    cout << endl;
+  }
+
+  fileObjects.clear();
+  delete fRootFile; fRootFile = nullptr;
 }
 
 //_____________________________________________________________________________

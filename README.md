@@ -152,6 +152,16 @@ written. The default is the same directory as --plots-dir.
 The value specified here will be ignored if `protoimagefile` or
 `protomacroimagefile` are absolute paths.
 
+### --inspect \<file name\>
+
+Prints the list of objects in the given ROOT file. No configuration file will be
+read, and all other options except --verbosity will be ignored.
+The printout is grouped by histograms, trees, and other objects, if any.
+If verbosity > 0, details of histograms and the variables contained in the
+tree(s) will be listed.
+If a Podd "Run_Data" object (inheriting from THaRunBase) is found, the run
+metadata will also be printed.
+
 ### -V, --version
 
 Print program version and exit.

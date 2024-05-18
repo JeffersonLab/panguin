@@ -262,9 +262,9 @@ static int StrToIntRange( const string& str, int lo, int hi, const string& name 
 }
 
 //_____________________________________________________________________________
-// Constructor.  Without an argument, use default config
+// Default constructor. Create empty/default config. Does not load anything.
 OnlineConfig::OnlineConfig()
-  : OnlineConfig("default.cfg") {}
+  : OnlineConfig("") {}
 
 //_____________________________________________________________________________
 // Constructor.  Takes the config file name as the only argument.
@@ -294,7 +294,8 @@ OnlineConfig::OnlineConfig( const CmdLineOpts& opts )
   , fPrintOnly(opts.printonly)
   , fSaveImages(opts.saveimages)
 {
-  // Pick up config file directory/path form environment.
+  if( confFileName.empty() )
+    return;  // Pick up config file directory/path form environment.
   // A config dir or path given on the command line takes preference.
   string cfgpath = opts.cfgdir;
   try {

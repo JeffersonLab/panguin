@@ -16,7 +16,7 @@ unique_ptr<OnlineGUI> online( const OnlineConfig::CmdLineOpts& opts );
 
 int main( int argc, char** argv )
 {
-  string cfgfile{"default.cfg"}, rootfile, goldenfile;
+  string cfgfile{"default.cfg"}, rootfile, goldenfile, scanfile;
   string plotfmt, imgfmt;
   string cfgdir, rootdir, pltdir, imgdir;
   int run{0};
@@ -64,6 +64,9 @@ int main( int argc, char** argv )
   cli.add_option("-v,--verbosity", verbosity,
                  "Set verbosity level (>=0)")
     ->type_name("<level>");
+  cli.add_option("--inspect", scanfile,
+                 "List objects in given ROOT file")
+    ->type_name("<file name>");
   cli.set_version_flag("-V,--version", PANGUIN_VERSION);
 
   CLI11_PARSE(cli, argc, argv)
@@ -89,15 +92,24 @@ int main( int argc, char** argv )
 
   TApplication theApp("panguin", &argc, argv, nullptr, -1);
   try {
-    auto gui
-      = online({cfgfile, cfgdir, rootfile, goldenfile, rootdir, plotfmt,
-                imgfmt, pltdir, imgdir, run, verbosity, printonly,
-                saveImages});
-    if( gui ) {
-      if( gui->IsPrintOnly() )
-        gui->PrintPages();
-      else
-        theApp.Run(true);
+    if( scanfile.empty() ) {
+      auto gui
+        = online({cfgfile, cfgdir, rootfile, goldenfile, rootdir, plotfmt,
+                  imgfmt, pltdir, imgdir, run, verbosity, printonly,
+                  saveImages});
+      if( gui ) {
+        if( gui->IsPrintOnly() )
+          gui->PrintPages();
+        else
+          theApp.Run(true);
+      }
+    } else {
+#if __cplusplus >= 201402L
+      auto gui = make_unique<OnlineGUI>();
+#else
+      auto gui = unique_ptr<OnlineGUI>(new OnlineGUI);
+#endif
+      gui->InspectRootFile(scanfile);
     }
 
   } catch ( const exception& e ) {
