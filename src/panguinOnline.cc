@@ -1095,12 +1095,12 @@ void OnlineGUI::HistDraw( const cmdmap_t& command )
   const string& var = getMapVal(command, "variable");
   if( var.empty() ) return;
   const char* cvar = var.c_str();
+  bool found = false;
   for( const auto& fileObject: fileObjects ) {
-    if( fileObject.name.Contains(var) ) {
+    if( fileObject.name == var ) {
       if( fileObject.type.Contains("TH1") ) {
         if( showGolden ) fRootFile->cd();
         mytemp1d = dynamic_cast<TH1*> (gDirectory->Get(cvar));
-        assert(mytemp1d);
         if( !mytemp1d ) break;
         if( mytemp1d->GetEntries() == 0 ) {
           BadDraw("Empty Histogram");
@@ -1108,31 +1108,34 @@ void OnlineGUI::HistDraw( const cmdmap_t& command )
           if( showGolden ) {
             fGoldenFile->cd();
             mytemp1d_golden = dynamic_cast<TH1*> (gDirectory->Get(cvar));
-            assert(mytemp1d_golden);
-            if( !mytemp1d_golden ) break;
-            mytemp1d_golden->SetLineColor(30);
-            mytemp1d_golden->SetFillColor(30);
-            Style_t fillstyle = fPrintOnly ? 3010 : 3027;
-            mytemp1d_golden->SetFillStyle(fillstyle);
-            mytemp1d_golden->SetStats(false);
-            if( newtitle != "" ) mytemp1d_golden->SetTitle(newtitle);
-            mytemp1d_golden->Draw();
+            if( mytemp1d_golden ) {
+              mytemp1d_golden->SetLineColor(30);
+              mytemp1d_golden->SetFillColor(30);
+              Style_t fillstyle = fPrintOnly ? 3010 : 3027;
+              mytemp1d_golden->SetFillStyle(fillstyle);
+              mytemp1d_golden->SetStats(false);
+              if( newtitle != "" ) mytemp1d_golden->SetTitle(newtitle);
+              mytemp1d_golden->Draw();
+            }
             mytemp1d->SetStats(showstat);
             if( newtitle != "" ) mytemp1d->SetTitle(newtitle); // for SaveImage
-            mytemp1d->Draw("sames" + drawopt);
+            if( mytemp1d_golden ) //FIXME clumsy code duplication with next else block
+              mytemp1d->Draw("sames" + drawopt);
+            else
+              mytemp1d->Draw(drawopt);
           } else {
             mytemp1d->SetStats(showstat);
             if( newtitle != "" ) mytemp1d->SetTitle(newtitle);
             mytemp1d->Draw(drawopt);
           }
           SaveImage(mytemp1d, command);
+          found = true;
         }
         break;
       }
       if( fileObject.type.Contains("TH2") ) {
         if( showGolden ) fRootFile->cd();
         mytemp2d = dynamic_cast<TH2*> (gDirectory->Get(cvar));
-        assert(mytemp2d);
         if( !mytemp2d ) break;
         if( mytemp2d->GetEntries() == 0 ) {
           BadDraw("Empty Histogram");
@@ -1154,13 +1157,13 @@ void OnlineGUI::HistDraw( const cmdmap_t& command )
           mytemp2d->SetStats(showstat);
           mytemp2d->Draw(drawopt);
           SaveImage(mytemp2d, command);
+          found = true;
         }
         break;
       }
       if( fileObject.type.Contains("TH3") ) {
         if( showGolden ) fRootFile->cd();
         mytemp3d = dynamic_cast<TH3*> (gDirectory->Get(cvar));
-        assert(mytemp3d);
         if( !mytemp3d ) break;
         if( mytemp3d->GetEntries() == 0 ) {
           BadDraw("Empty Histogram");
@@ -1169,20 +1172,25 @@ void OnlineGUI::HistDraw( const cmdmap_t& command )
           if( showGolden ) {
             fGoldenFile->cd();
             mytemp3d_golden = dynamic_cast<TH3*> (gDirectory->Get(cvar));
-            assert(mytemp3d_golden);
-            if( !mytemp3d_golden ) break;
-            mytemp3d_golden->SetMarkerColor(2);
-            mytemp3d_golden->Draw();
-            mytemp3d->Draw("sames" + drawopt);
+            if( mytemp3d_golden ) {
+              mytemp3d_golden->SetMarkerColor(2);
+              mytemp3d_golden->Draw();
+              mytemp3d->Draw("sames" + drawopt);
+            } else {
+              mytemp3d->Draw(drawopt);
+            }
           } else {
             mytemp3d->Draw(drawopt);
           }
           SaveImage(mytemp3d, command);
+          found = true;
         }
         break;
       }
     }
   }
+  if( !found )
+    BadDraw( var + " not found");
 }
 
 void OnlineGUI::TreeDraw( const cmdmap_t& command )
