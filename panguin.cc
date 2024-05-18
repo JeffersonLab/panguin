@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <memory>
 
-#define PANGUIN_VERSION "Panguin version 2.7 (16-Apr-2024)"
+#define PANGUIN_VERSION "Panguin version 2.8 (17-May-2024)"
 
 using namespace std;
 
